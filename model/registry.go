@@ -124,7 +124,7 @@ type GetServicesInfoResponse struct {
 
 // ServiceDetail is a struct to store all the relevant information for a microservice
 type ServiceDetail struct {
-	MicroService         *MicroService           `protobuf:"bytes,1,opt,name=microSerivce" json:"microSerivce,omitempty"`
+	MicroService         *MicroService           `protobuf:"bytes,1,opt,name=microService" json:"microService,omitempty"`
 	Instances            []*MicroServiceInstance `protobuf:"bytes,2,rep,name=instances" json:"instances,omitempty"`
 	Providers            []*MicroService         `protobuf:"bytes,5,rep,name=providers" json:"providers,omitempty"`
 	Consumers            []*MicroService         `protobuf:"bytes,6,rep,name=consumers" json:"consumers,omitempty"`

@@ -40,13 +40,13 @@ type ServicePath struct {
 
 // MicroService is a struct with all detailed information of microservies
 type MicroService struct {
-	ServiceID   string   `protobuf:"bytes,1,opt,name=serviceId" json:"serviceId,omitempty"`
-	AppID       string   `protobuf:"bytes,2,opt,name=appId" json:"appId,omitempty"`
-	ServiceName string   `protobuf:"bytes,3,opt,name=serviceName" json:"serviceName,omitempty"`
-	Version     string   `protobuf:"bytes,4,opt,name=version" json:"version,omitempty"`
-	Description string   `protobuf:"bytes,5,opt,name=description" json:"description,omitempty"`
-	Level       string   `protobuf:"bytes,6,opt,name=level" json:"level,omitempty"`
-	Schemas     []string `protobuf:"bytes,7,rep,name=schemas" json:"schemas,omitempty"`
+	ServiceID   string                    `protobuf:"bytes,1,opt,name=serviceId" json:"serviceId,omitempty"`
+	AppID       string                    `protobuf:"bytes,2,opt,name=appId" json:"appId,omitempty"`
+	ServiceName string                    `protobuf:"bytes,3,opt,name=serviceName" json:"serviceName,omitempty"`
+	Version     string                    `protobuf:"bytes,4,opt,name=version" json:"version,omitempty"`
+	Description string                    `protobuf:"bytes,5,opt,name=description" json:"description,omitempty"`
+	Level       string                    `protobuf:"bytes,6,opt,name=level" json:"level,omitempty"`
+	Schemas     []string                  `protobuf:"bytes,7,rep,name=schemas" json:"schemas,omitempty"`
 	Paths       []*ServicePath            `protobuf:"bytes,10,rep,name=paths" json:"paths,omitempty"`
 	Status      string                    `protobuf:"bytes,8,opt,name=status" json:"status,omitempty"`
 	Properties  map[string]string         `protobuf:"bytes,9,rep,name=properties" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -79,16 +79,17 @@ type DataCenterInfo struct {
 
 // MicroServiceInstance is a struct to store all the detailed information about micro-service information
 type MicroServiceInstance struct {
-	InstanceID string            `protobuf:"bytes,1,opt,name=instanceId" json:"instanceId,omitempty"`
-	ServiceID  string            `protobuf:"bytes,2,opt,name=serviceId" json:"serviceId,omitempty"`
-	Endpoints  []string          `protobuf:"bytes,3,rep,name=endpoints" json:"endpoints,omitempty"`
-	HostName   string            `protobuf:"bytes,4,opt,name=hostName" json:"hostName,omitempty"`
-	Status     string            `protobuf:"bytes,5,opt,name=status" json:"status,omitempty"`
-	Properties map[string]string `protobuf:"bytes,6,rep,name=properties" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	InstanceID     string            `protobuf:"bytes,1,opt,name=instanceId" json:"instanceId,omitempty"`
+	ServiceID      string            `protobuf:"bytes,2,opt,name=serviceId" json:"serviceId,omitempty"`
+	Endpoints      []string          `protobuf:"bytes,3,rep,name=endpoints" json:"endpoints,omitempty"`
+	HostName       string            `protobuf:"bytes,4,opt,name=hostName" json:"hostName,omitempty"`
+	Status         string            `protobuf:"bytes,5,opt,name=status" json:"status,omitempty"`
+	Properties     map[string]string `protobuf:"bytes,6,rep,name=properties" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	HealthCheck    *HealthCheck      `protobuf:"bytes,7,opt,name=healthCheck" json:"healthCheck,omitempty"`
 	Timestamp      string            `protobuf:"bytes,8,opt,name=timestamp" json:"timestamp,omitempty"`
 	DataCenterInfo *DataCenterInfo   `protobuf:"bytes,9,opt,name=dataCenterInfo" json:"dataCenterInfo,omitempty"`
 	Environment    string            `protobuf:"bytes,10,opt,name=environment" json:"environment,omitempty"`
+	Version        string            `protobuf:"bytes,11,opt,name=version" json:"version,omitempty"`
 }
 
 // MicroServiceInstanceChangedEvent is a struct to store the Changed event information

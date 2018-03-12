@@ -172,6 +172,9 @@ func (c *RegistryClient) encodeParams(params []URLParameter) string {
 	encoded := []string{}
 	for _, param := range params {
 		for k, v := range param {
+			if k == "" || v == "" {
+				continue
+			}
 			encoded = append(encoded, fmt.Sprintf("%s=%s", k, url.QueryEscape(v)))
 		}
 	}
@@ -352,12 +355,13 @@ func (c *RegistryClient) GetSchema(microServiceID, schemaName string) ([]byte, e
 }
 
 // GetMicroServiceID gets the microserviceid by appID, serviceName and version
-func (c *RegistryClient) GetMicroServiceID(appID, microServiceName, version string) (string, error) {
+func (c *RegistryClient) GetMicroServiceID(appID, microServiceName, version, env string) (string, error) {
 	url := c.formatURL("%s%s?%s", MSAPIPath, ExistencePath, c.encodeParams([]URLParameter{
 		{"type": "microservice"},
 		{"appId": appID},
 		{"serviceName": microServiceName},
 		{"version": version},
+		{"env": env},
 	}))
 	resp, err := c.HTTPDo("GET", url, nil, nil)
 	if err != nil {
@@ -462,19 +466,18 @@ func (c *RegistryClient) GetMicroService(microServiceID string) (*model.MicroSer
 }
 
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule
-func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServiceName, versionRule, stage string) ([]*model.MicroServiceInstance, error) {
+func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServiceName, versionRule string) ([]*model.MicroServiceInstance, error) {
 	microserviceInstanceURL := c.formatURL("%s%s?%s", MSAPIPath, InstancePath, c.encodeParams([]URLParameter{
 		{"appId": appID},
 		{"serviceName": microServiceName},
 		{"version": versionRule},
-		{"env": stage},
 	}))
 	resp, err := c.HTTPDo("GET", microserviceInstanceURL, http.Header{"X-ConsumerId": []string{consumerID}}, nil)
 	if err != nil {
 		return nil, err
 	}
 	if resp == nil {
-		return nil, fmt.Errorf("FindMicroServiceInstances failed, response is empty, appID/MicroServiceName/version/stage: %s/%s/%s/%s", appID, microServiceName, versionRule, stage)
+		return nil, fmt.Errorf("FindMicroServiceInstances failed, response is empty, appID/MicroServiceName/version: %s/%s/%s", appID, microServiceName, versionRule)
 	}
 	var body []byte
 	body, err = ioutil.ReadAll(resp.Body)
@@ -489,8 +492,8 @@ func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServi
 		}
 		return response.Instances, nil
 	}
-	return nil, fmt.Errorf("FindMicroServiceInstances failed, appID/MicroServiceName/version/stage: %s/%s/%s/%s, response StatusCode: %d, response body: %s",
-		appID, microServiceName, versionRule, stage, resp.StatusCode, string(body))
+	return nil, fmt.Errorf("FindMicroServiceInstances failed, appID/MicroServiceName/version: %s/%s/%s, response StatusCode: %d, response body: %s",
+		appID, microServiceName, versionRule, resp.StatusCode, string(body))
 }
 
 // RegisterMicroServiceInstance registers the microservice instance to Servive-Center

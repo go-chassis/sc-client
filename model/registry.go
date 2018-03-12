@@ -28,7 +28,6 @@ type MicroServiceKey struct {
 	AppID       string `protobuf:"bytes,3,opt,name=appId" json:"appId,omitempty"`
 	ServiceName string `protobuf:"bytes,4,opt,name=serviceName" json:"serviceName,omitempty"`
 	Version     string `protobuf:"bytes,5,opt,name=version" json:"version,omitempty"`
-	Stage       string `protobuf:"bytes,6,opt,name=stage" json:"stage,omitempty"`
 	ins         []MicroServiceInstance
 }
 
@@ -54,6 +53,7 @@ type MicroService struct {
 	Providers   []*DependencyMicroService `protobuf:"bytes,12,rep,name=providers" json:"providers,omitempty"`
 	Framework   *Framework                `protobuf:"bytes,13,opt,name=framework" json:"framework,omitempty"`
 	RegisterBy  string                    `protobuf:"bytes,14,opt,name=registerBy" json:"registerBy,omitempty"`
+	Environment string                    `protobuf:"bytes,15,opt,name=environment" json:"environment,omitempty"`
 }
 
 // Framework is a struct which contains name and version of the Framework
@@ -88,7 +88,6 @@ type MicroServiceInstance struct {
 	HealthCheck    *HealthCheck      `protobuf:"bytes,7,opt,name=healthCheck" json:"healthCheck,omitempty"`
 	Timestamp      string            `protobuf:"bytes,8,opt,name=timestamp" json:"timestamp,omitempty"`
 	DataCenterInfo *DataCenterInfo   `protobuf:"bytes,9,opt,name=dataCenterInfo" json:"dataCenterInfo,omitempty"`
-	Environment    string            `protobuf:"bytes,10,opt,name=environment" json:"environment,omitempty"`
 	Version        string            `protobuf:"bytes,11,opt,name=version" json:"version,omitempty"`
 }
 

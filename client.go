@@ -128,17 +128,17 @@ func (c *RegistryClient) updateAPIPath() {
 	switch c.apiVersion {
 	case "v4":
 		MSAPIPath = "/v4/" + projectID + "/registry"
-		TenantHeader = "X-Domain-Name"
+		TenantHeader = model.TenantHeader
 		GovernAPIPATH = "/v4/" + projectID + "/govern"
 		lager.Logger.Info("Use Service center v4")
 	case "v3":
-		MSAPIPath = "/registry/v3"
+		MSAPIPath = model.APIPath
 		TenantHeader = "X-Tenant-Name"
-		GovernAPIPATH = "/registry/v3"
+		GovernAPIPATH = model.APIPath
 		lager.Logger.Info("Use Service center v3")
 	default:
 		MSAPIPath = "/v4/" + projectID + "/registry"
-		TenantHeader = "X-Domain-Name"
+		TenantHeader = model.TenantHeader
 		GovernAPIPATH = "/v4/" + projectID + "/govern"
 		lager.Logger.Info("Use Service center v4")
 	}

@@ -3,22 +3,31 @@ package model
 const (
 	//EventCreate is a constant of type string
 	EventCreate string = "CREATE"
+	//EventUpdate is a constant of type string
 	EventUpdate string = "UPDATE"
+	//EventDelete is a constant of type string
 	EventDelete string = "DELETE"
-	EventError  string = "ERROR"
-
-	MicorserviceUp   string = "UP"
+	//EventError is a constant of type string
+	EventError string = "ERROR"
+	//MicorserviceUp is a constant of type string
+	MicorserviceUp string = "UP"
+	//MicroserviceDown is a constant of type string
 	MicroserviceDown string = "DOWN"
-
-	MSInstanceUP    string = "UP"
+	//MSInstanceUP is a constant of type string
+	MSInstanceUP string = "UP"
+	//MSIinstanceDown is a constant of type string
 	MSIinstanceDown string = "DOWN"
-	//MSI_STARTING     string = "STARTING"
-	//MSI_OUTOFSERVICE string = "OUTOFSERVICE"
-
+	//CheckByHeartbeat is a constant of type string
 	CheckByHeartbeat string = "push"
-	//CHECK_BY_PLATFORM             string = "pull"
 	//DefaultLeaseRenewalInterval is a constant of type int which declares default lease renewal time
 	DefaultLeaseRenewalInterval = 30
+	//APIPath is a constant of type string
+	APIPath = "/registry/v3"
+	//TenantHeader is a constant of type string
+	TenantHeader = "X-Domain-Name"
+	//MSI_STARTING     string = "STARTING"
+	//MSI_OUTOFSERVICE string = "OUTOFSERVICE"
+	//CHECK_BY_PLATFORM             string = "pull"
 )
 
 // MicroServiceKey is a struct with key information about Microservice
@@ -70,7 +79,7 @@ type HealthCheck struct {
 	Times    int32  `protobuf:"varint,4,opt,name=times" json:"times,omitempty"`
 }
 
-// DataCenterInfo is a struct with containes the zone information of the data center
+// DataCenterInfo is a struct with contains the zone information of the data center
 type DataCenterInfo struct {
 	Name          string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	Region        string `protobuf:"bytes,2,opt,name=region" json:"region,omitempty"`

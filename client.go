@@ -799,6 +799,7 @@ func (c *RegistryClient) WatchMicroService(microServiceID string, callback func(
 			}
 			conn, _, err := c.wsDialer.Dial(u.String(), c.GetDefaultHeaders())
 			if err != nil {
+				c.watchers[microServiceID] = false
 				c.mutex.Unlock()
 				return fmt.Errorf("watching microservice dial catch an exception,microServiceID: %s, error:%s", microServiceID, err.Error())
 			}

@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Options is the list of dynamic parameter's which can be passed to the RegistryClient while creating a new client

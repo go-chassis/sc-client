@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ServiceComb/go-chassis/core/common"
 	"github.com/ServiceComb/go-chassis/core/lager"
 	"github.com/ServiceComb/go-sc-client/model"
 	"github.com/ServiceComb/http-client"
 	"github.com/cenkalti/backoff"
 	"github.com/gorilla/websocket"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,10 +32,11 @@ const (
 	PropertiesPath      = "/properties"
 	HeaderContentType   = "Content-Type"
 	HeaderUserAgent     = "User-Agent"
-	protocolSymbol      = "://"
 	DefaultAddr         = "127.0.0.1:30100"
 	AppsPath            = "/apps"
 	DefaultRetryTimeout = 500 * time.Millisecond
+	HeaderRevision      = "X-Resource-Revision"
+	EnvProjectID        = "CSE_PROJECT_ID"
 )
 
 // Define variables for the client
@@ -43,6 +44,12 @@ var (
 	MSAPIPath     = ""
 	TenantHeader  = ""
 	GovernAPIPATH = ""
+)
+var (
+	//ErrNotModified means instance is not changed
+	ErrNotModified = errors.New("instance is not changed since last query")
+	//ErrMicroServiceExists means service is registered
+	ErrMicroServiceExists = errors.New("micro-service already exists")
 )
 
 // RegistryClient is a structure for the client to communicate to Service-Center
@@ -55,6 +62,7 @@ type RegistryClient struct {
 	wsDialer   *websocket.Dialer
 	conns      map[string]*websocket.Conn
 	apiVersion string
+	revision   string
 }
 
 // RegistryConfig is a structure to store registry configurations like address of cc, ssl configurations and tenant name
@@ -69,6 +77,7 @@ type URLParameter map[string]string
 
 // Initialize initializes the Registry Client
 func (c *RegistryClient) Initialize(opt Options) (err error) {
+	c.revision = "0"
 	c.Config = &RegistryConfig{
 		Addresses: opt.Addrs,
 		SSL:       opt.EnableSSL,
@@ -121,8 +130,8 @@ func (c *RegistryClient) updateAPIPath() {
 
 	//Check for the env Name in Container to get Domain Name
 	//Default value is  "default"
-	projectID, isExsist := os.LookupEnv(common.EnvProjectID)
-	if !isExsist {
+	projectID, isExist := os.LookupEnv(EnvProjectID)
+	if !isExist {
 		projectID = "default"
 	}
 	switch c.apiVersion {
@@ -160,7 +169,7 @@ func (c *RegistryClient) SyncEndpoints() error {
 		lager.Logger.Info("Sync service center endpoints " + strings.Join(eps, ","))
 		return nil
 	}
-	return fmt.Errorf("Sync endpoints failed")
+	return fmt.Errorf("sync endpoints failed")
 }
 
 func (c *RegistryClient) formatURL(format string, v ...interface{}) string {
@@ -239,6 +248,9 @@ func (c *RegistryClient) RegisterService(microService *model.MicroService) (stri
 		}
 		microService.ServiceID = response.ServiceID
 		return response.ServiceID, nil
+	}
+	if resp.StatusCode == 400 {
+		return "", ErrMicroServiceExists
 	}
 	return "", fmt.Errorf("RegisterService failed, MicroServiceName/responseStatusCode/responsebody: %s/%d/%s",
 		microService.ServiceName, resp.StatusCode, string(body))
@@ -466,11 +478,13 @@ func (c *RegistryClient) GetMicroService(microServiceID string) (*model.MicroSer
 }
 
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule
-func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServiceName, versionRule string) ([]*model.MicroServiceInstance, error) {
+func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServiceName,
+	versionRule string) ([]*model.MicroServiceInstance, error) {
 	microserviceInstanceURL := c.formatURL("%s%s?%s", MSAPIPath, InstancePath, c.encodeParams([]URLParameter{
 		{"appId": appID},
 		{"serviceName": microServiceName},
 		{"version": versionRule},
+		{"rev": c.revision},
 	}))
 	resp, err := c.HTTPDo("GET", microserviceInstanceURL, http.Header{"X-ConsumerId": []string{consumerID}}, nil)
 	if err != nil {
@@ -490,7 +504,16 @@ func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServi
 		if err != nil {
 			return nil, model.NewJSONException(err, string(body))
 		}
+		r := resp.Header.Get(HeaderRevision)
+		if r != c.revision && r != "" {
+			c.revision = r
+			lager.Logger.Debug("Instance got new revision " + c.revision)
+		}
+
 		return response.Instances, nil
+	}
+	if resp.StatusCode == http.StatusNotModified {
+		return nil, ErrNotModified
 	}
 	return nil, fmt.Errorf("FindMicroServiceInstances failed, appID/MicroServiceName/version: %s/%s/%s, response StatusCode: %d, response body: %s",
 		appID, microServiceName, versionRule, resp.StatusCode, string(body))
@@ -886,8 +909,12 @@ func getBackOff(backoffType string) backoff.BackOff {
 func getProtocolMap(eps []string) map[string]string {
 	m := make(map[string]string)
 	for _, ep := range eps {
-		temp := strings.Split(ep, protocolSymbol)
-		m[temp[0]] = temp[1]
+		u, err := url.Parse(ep)
+		if err != nil {
+			log.Println("URL error" + err.Error())
+			continue
+		}
+		m[u.Scheme] = u.Host
 	}
 	return m
 }

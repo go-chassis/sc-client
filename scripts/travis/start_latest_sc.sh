@@ -17,3 +17,5 @@ gvt restore
 go build -o incubator-servicecomb-service-center
 cp -r etc/conf .
 ./incubator-servicecomb-service-center > start-sc.log 2>&1 &
+
+sleep 10

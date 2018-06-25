@@ -42,14 +42,13 @@ func TestClientInitializeHttpErr(t *testing.T) {
 		lager.Logger.Error("Get hostname failed.", err)
 		return
 	}
-
-	registryClient := &client.RegistryClient{}
-
 	microServiceInstance := &model.MicroServiceInstance{
 		Endpoints: []string{"rest://127.0.0.1:3000"},
 		HostName:  hostname,
 		Status:    model.MSInstanceUP,
 	}
+
+	registryClient := &client.RegistryClient{}
 
 	err = registryClient.Initialize(
 		client.Options{
@@ -75,13 +74,13 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	err = registryClient.WatchMicroService(MSList[0].ServiceID, f1)
 	assert.NoError(t, err)
 
-	var ms *model.MicroService = new(model.MicroService)
-	var msdepreq *model.MircroServiceDependencyRequest = new(model.MircroServiceDependencyRequest)
+	var ms = new(model.MicroService)
+	var msdepreq = new(model.MircroServiceDependencyRequest)
 	var msdepArr []*model.MicroServiceDependency
-	var msdep1 *model.MicroServiceDependency = new(model.MicroServiceDependency)
-	var msdep2 *model.MicroServiceDependency = new(model.MicroServiceDependency)
-	var dep *model.DependencyMicroService = new(model.DependencyMicroService)
-	var m map[string]string = make(map[string]string)
+	var msdep1 = new(model.MicroServiceDependency)
+	var msdep2 = new(model.MicroServiceDependency)
+	var dep = new(model.DependencyMicroService)
+	var m = make(map[string]string)
 
 	m["abc"] = "abc"
 	m["def"] = "def"
@@ -193,6 +192,60 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	assert.NotZero(t, len(services))
 	assert.NoError(t, err)
 	err = registryClient.Close()
+	assert.NoError(t, err)
+
+}
+func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
+	lager.Initialize("", "DEBUG", "",
+		"size", true, 1, 10, 7)
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		lager.Logger.Error("Get hostname failed.", err)
+		return
+	}
+	ms := &model.MicroService{
+		ServiceName: "Server",
+		AppID:       "default",
+		Version:     "0.0.1",
+	}
+	var sid string
+	registryClient := &client.RegistryClient{}
+
+	err = registryClient.Initialize(
+		client.Options{
+			Addrs: []string{"127.0.0.1:30100"},
+		})
+	assert.NoError(t, err)
+	sid, err = registryClient.RegisterService(ms)
+	if err == client.ErrMicroServiceExists {
+		sid, err = registryClient.GetMicroServiceID("default", "Server", "0.0.1", "")
+		assert.NoError(t, err)
+		assert.NotNil(t, sid)
+	}
+
+	microServiceInstance := &model.MicroServiceInstance{
+		ServiceID: sid,
+		Endpoints: []string{"rest://127.0.0.1:3000"},
+		HostName:  hostname,
+		Status:    model.MSInstanceUP,
+	}
+
+	iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
+	assert.NotNil(t, iid)
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
+	assert.NoError(t, err)
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
+	assert.Equal(t, client.ErrNotModified, err)
+	t.Log(err)
+	microServiceInstance2 := &model.MicroServiceInstance{
+		ServiceID: sid,
+		Endpoints: []string{"rest://127.0.0.1:3001"},
+		HostName:  hostname + "1",
+		Status:    model.MSInstanceUP,
+	}
+	iid, err = registryClient.RegisterMicroServiceInstance(microServiceInstance2)
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
 	assert.NoError(t, err)
 
 }

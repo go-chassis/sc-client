@@ -36,5 +36,7 @@ jobs:
     - stage: Unit Test
       script:
         - go get -u github.com/FiloSottile/gvt
-        - bash -x scripts/travis/start_latest_sc.sh 
+        - bash -x scripts/travis/start_latest_sc.sh
+        - go get github.com/Masterminds/glide
+        - glide install
         - bash -x scripts/travis/unit_test.sh 

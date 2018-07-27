@@ -2,7 +2,7 @@ package model_test
 
 import (
 	"errors"
-	"github.com/ServiceComb/go-sc-client/model"
+	"github.com/go-chassis/go-sc-client/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

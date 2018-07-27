@@ -1,12 +1,12 @@
 package client_test
 
 import (
-	"github.com/ServiceComb/go-sc-client"
-	"github.com/ServiceComb/go-sc-client/model"
+	"github.com/go-chassis/go-sc-client"
+	"github.com/go-chassis/go-sc-client/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/ServiceComb/go-chassis/core/lager"
+	"github.com/go-chassis/go-chassis/core/lager"
 	"os"
 )
 

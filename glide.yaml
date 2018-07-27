@@ -1,9 +1,9 @@
-package: github.com/ServiceComb/go-sc-client
+package: github.com/go-chassis/go-sc-client
 import:
-- package: github.com/ServiceComb/go-chassis
+- package: github.com/go-chassis/go-chassis
   subpackages:
   - core/lager
-- package: github.com/ServiceComb/http-client
+- package: github.com/go-chassis/http-client
 - package: github.com/cenkalti/backoff
 - package: github.com/gorilla/websocket
 testImport:

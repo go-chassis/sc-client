@@ -4,7 +4,7 @@ set -e
 
 netstat -lntp
 
-cd $GOPATH/src/github.com/ServiceComb/go-sc-client
+cd $GOPATH/src/github.com/go-chassis/go-sc-client
 #Start unit test
 for d in $(go list ./... | grep -v /vendor/); do
     echo $d

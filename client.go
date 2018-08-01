@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chassis/go-chassis/core/lager"
-	"github.com/go-chassis/go-sc-client/model"
-	"github.com/go-chassis/http-client"
 	"github.com/cenkalti/backoff"
+	"github.com/go-chassis/go-chassis/core/lager"
+	"github.com/go-chassis/go-chassis/pkg/httpclient"
+	"github.com/go-chassis/go-sc-client/model"
 	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"log"
@@ -208,7 +208,7 @@ func (c *RegistryClient) HTTPDo(method string, rawURL string, headers http.Heade
 	for k, v := range c.GetDefaultHeaders() {
 		headers[k] = v
 	}
-	return c.client.HttpDo(method, rawURL, headers, body)
+	return c.client.HTTPDo(method, rawURL, headers, body)
 }
 
 // RegisterService registers the micro-services to Service-Center

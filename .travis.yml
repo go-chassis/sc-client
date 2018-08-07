@@ -35,8 +35,7 @@ jobs:
         - bash -x scripts/travis/goCycloChecker.sh
     - stage: Unit Test
       script:
-        - go get -u github.com/FiloSottile/gvt
-        - bash -x scripts/travis/start_latest_sc.sh
         - go get github.com/Masterminds/glide
+        - bash -x scripts/travis/start_latest_sc.sh
         - glide install
         - bash -x scripts/travis/unit_test.sh 

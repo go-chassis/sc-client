@@ -236,7 +236,9 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
 	assert.NoError(t, err)
 	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
-	assert.Equal(t, client.ErrNotModified, err)
+	//todo revision function is conflicted with go-chassis cache module, disable it until rewrite go-chassis cache module
+	//assert.Equal(t, client.ErrNotModified, err)
+	assert.Equal(t, nil, err)
 	t.Log(err)
 	microServiceInstance2 := &model.MicroServiceInstance{
 		ServiceID: sid,

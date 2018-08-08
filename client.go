@@ -484,7 +484,8 @@ func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServi
 		{"appId": appID},
 		{"serviceName": microServiceName},
 		{"version": versionRule},
-		{"rev": c.revision},
+		//todo revision function is conflicted with go-chassis cache module, disable it until rewrite go-chassis cache module
+		//{"rev": c.revision},
 	}))
 	resp, err := c.HTTPDo("GET", microserviceInstanceURL, http.Header{"X-ConsumerId": []string{consumerID}}, nil)
 	if err != nil {

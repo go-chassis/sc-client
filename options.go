@@ -20,3 +20,18 @@ type Options struct {
 	Verbose    bool
 	Version    string
 }
+
+//CallOptions is options when you call a API
+type CallOptions struct {
+	WithoutRevision bool
+}
+
+//WithoutRevision ignore current revision number
+func WithoutRevision() CallOption {
+	return func(o *CallOptions) {
+		o.WithoutRevision = true
+	}
+}
+
+//CallOption is receiver for options and chang the attribute of it
+type CallOption func(*CallOptions)

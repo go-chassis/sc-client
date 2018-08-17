@@ -75,6 +75,11 @@ type RegistryConfig struct {
 // URLParameter maintains the list of parameters to be added in URL
 type URLParameter map[string]string
 
+//ResetRevision reset the revision to 0
+func (c *RegistryClient) ResetRevision() {
+	c.revision = "0"
+}
+
 // Initialize initializes the Registry Client
 func (c *RegistryClient) Initialize(opt Options) (err error) {
 	c.revision = "0"

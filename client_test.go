@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chassis/go-chassis/core/lager"
 	"os"
+	"time"
 )
 
 func TestLoadbalance(t *testing.T) {
@@ -235,9 +236,16 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	assert.NotNil(t, iid)
 	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
 	assert.NoError(t, err)
+
+	t.Log("find again, should get ErrNotModified")
 	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
 	assert.Equal(t, client.ErrNotModified, err)
-	t.Log(err)
+
+	t.Log("find again without revision, should get nil error")
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1", client.WithoutRevision())
+	assert.NoError(t, err)
+
+	t.Log("register new and find")
 	microServiceInstance2 := &model.MicroServiceInstance{
 		ServiceID: sid,
 		Endpoints: []string{"rest://127.0.0.1:3001"},
@@ -245,6 +253,7 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 		Status:    model.MSInstanceUP,
 	}
 	iid, err = registryClient.RegisterMicroServiceInstance(microServiceInstance2)
+	time.Sleep(3 * time.Second)
 	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
 	assert.NoError(t, err)
 

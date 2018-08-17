@@ -479,13 +479,27 @@ func (c *RegistryClient) GetMicroService(microServiceID string) (*model.MicroSer
 
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule
 func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServiceName,
-	versionRule string) ([]*model.MicroServiceInstance, error) {
-	microserviceInstanceURL := c.formatURL("%s%s?%s", MSAPIPath, InstancePath, c.encodeParams([]URLParameter{
-		{"appId": appID},
-		{"serviceName": microServiceName},
-		{"version": versionRule},
-		{"rev": c.revision},
-	}))
+	versionRule string, opts ...CallOption) ([]*model.MicroServiceInstance, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	var microserviceInstanceURL string
+	if copts.WithoutRevision {
+		microserviceInstanceURL = c.formatURL("%s%s?%s", MSAPIPath, InstancePath, c.encodeParams([]URLParameter{
+			{"appId": appID},
+			{"serviceName": microServiceName},
+			{"version": versionRule},
+		}))
+	} else {
+		microserviceInstanceURL = c.formatURL("%s%s?%s", MSAPIPath, InstancePath, c.encodeParams([]URLParameter{
+			{"appId": appID},
+			{"serviceName": microServiceName},
+			{"version": versionRule},
+			{"rev": c.revision},
+		}))
+	}
+
 	resp, err := c.HTTPDo("GET", microserviceInstanceURL, http.Header{"X-ConsumerId": []string{consumerID}}, nil)
 	if err != nil {
 		return nil, err

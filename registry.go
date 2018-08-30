@@ -1,4 +1,4 @@
-package model
+package client
 
 const (
 	//EventCreate is a constant of type string
@@ -23,8 +23,6 @@ const (
 	DefaultLeaseRenewalInterval = 30
 	//APIPath is a constant of type string
 	APIPath = "/registry/v3"
-	//TenantHeader is a constant of type string
-	TenantHeader = "X-Domain-Name"
 	//MSI_STARTING     string = "STARTING"
 	//MSI_OUTOFSERVICE string = "OUTOFSERVICE"
 	//CHECK_BY_PLATFORM             string = "pull"

@@ -2,7 +2,6 @@ package client_test
 
 import (
 	"github.com/go-chassis/go-sc-client"
-	"github.com/go-chassis/go-sc-client/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
 
@@ -43,10 +42,10 @@ func TestClientInitializeHttpErr(t *testing.T) {
 		lager.Logger.Error("Get hostname failed.", err)
 		return
 	}
-	microServiceInstance := &model.MicroServiceInstance{
+	microServiceInstance := &client.MicroServiceInstance{
 		Endpoints: []string{"rest://127.0.0.1:3000"},
 		HostName:  hostname,
-		Status:    model.MSInstanceUP,
+		Status:    client.MSInstanceUP,
 	}
 
 	registryClient := &client.RegistryClient{}
@@ -71,16 +70,16 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	assert.NotEmpty(t, MSList)
 	assert.NoError(t, err)
 
-	f1 := func(*model.MicroServiceInstanceChangedEvent) {}
+	f1 := func(*client.MicroServiceInstanceChangedEvent) {}
 	err = registryClient.WatchMicroService(MSList[0].ServiceID, f1)
 	assert.NoError(t, err)
 
-	var ms = new(model.MicroService)
-	var msdepreq = new(model.MircroServiceDependencyRequest)
-	var msdepArr []*model.MicroServiceDependency
-	var msdep1 = new(model.MicroServiceDependency)
-	var msdep2 = new(model.MicroServiceDependency)
-	var dep = new(model.DependencyMicroService)
+	var ms = new(client.MicroService)
+	var msdepreq = new(client.MircroServiceDependencyRequest)
+	var msdepArr []*client.MicroServiceDependency
+	var msdep1 = new(client.MicroServiceDependency)
+	var msdep2 = new(client.MicroServiceDependency)
+	var dep = new(client.DependencyMicroService)
 	var m = make(map[string]string)
 
 	m["abc"] = "abc"
@@ -121,15 +120,15 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	assert.Equal(t, true, b)
 	assert.NoError(t, err)
 
-	f1 = func(*model.MicroServiceInstanceChangedEvent) {}
+	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
 	err = registryClient.WatchMicroService(MSList[0].ServiceID, f1)
 	assert.NoError(t, err)
 
-	f1 = func(*model.MicroServiceInstanceChangedEvent) {}
+	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
 	err = registryClient.WatchMicroService("", f1)
 	assert.Error(t, err)
 
-	f1 = func(*model.MicroServiceInstanceChangedEvent) {}
+	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
 	err = registryClient.WatchMicroService(MSList[0].ServiceID, nil)
 	assert.NoError(t, err)
 
@@ -205,7 +204,7 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 		lager.Logger.Error("Get hostname failed.", err)
 		return
 	}
-	ms := &model.MicroService{
+	ms := &client.MicroService{
 		ServiceName: "Server",
 		AppID:       "default",
 		Version:     "0.0.1",
@@ -225,11 +224,11 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 		assert.NotNil(t, sid)
 	}
 
-	microServiceInstance := &model.MicroServiceInstance{
+	microServiceInstance := &client.MicroServiceInstance{
 		ServiceID: sid,
 		Endpoints: []string{"rest://127.0.0.1:3000"},
 		HostName:  hostname,
-		Status:    model.MSInstanceUP,
+		Status:    client.MSInstanceUP,
 	}
 
 	iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
@@ -246,11 +245,11 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Log("register new and find")
-	microServiceInstance2 := &model.MicroServiceInstance{
+	microServiceInstance2 := &client.MicroServiceInstance{
 		ServiceID: sid,
 		Endpoints: []string{"rest://127.0.0.1:3001"},
 		HostName:  hostname + "1",
-		Status:    model.MSInstanceUP,
+		Status:    client.MSInstanceUP,
 	}
 	iid, err = registryClient.RegisterMicroServiceInstance(microServiceInstance2)
 	time.Sleep(3 * time.Second)

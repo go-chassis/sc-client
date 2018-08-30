@@ -1,4 +1,4 @@
-package model
+package client
 
 // MicroServiceRequest is a struct with microservice information
 type MicroServiceRequest struct {

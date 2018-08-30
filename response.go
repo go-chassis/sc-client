@@ -1,4 +1,4 @@
-package model
+package client
 
 // ExistenceIDResponse is a structure for microservice with serviceID, schemaID and InstanceID
 type ExistenceIDResponse struct {

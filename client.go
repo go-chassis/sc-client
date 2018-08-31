@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cenkalti/backoff"
-	"github.com/go-chassis/go-chassis/core/lager"
 	"github.com/go-chassis/go-chassis/pkg/httpclient"
+	"github.com/go-mesh/openlogging"
 	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"log"
@@ -41,7 +41,7 @@ const (
 // Define variables for the client
 var (
 	MSAPIPath     = ""
-	TenantHeader  = ""
+	TenantHeader  = "X-Domain-Name"
 	GovernAPIPATH = ""
 )
 var (
@@ -143,17 +143,17 @@ func (c *RegistryClient) updateAPIPath() {
 		MSAPIPath = "/v4/" + projectID + "/registry"
 		TenantHeader = TenantHeader
 		GovernAPIPATH = "/v4/" + projectID + "/govern"
-		lager.Logger.Info("Use Service center v4")
+		openlogging.GetLogger().Info("Use Service center v4")
 	case "v3":
 		MSAPIPath = APIPath
 		TenantHeader = "X-Tenant-Name"
 		GovernAPIPATH = APIPath
-		lager.Logger.Info("Use Service center v3")
+		openlogging.GetLogger().Info("Use Service center v3")
 	default:
 		MSAPIPath = "/v4/" + projectID + "/registry"
 		TenantHeader = TenantHeader
 		GovernAPIPATH = "/v4/" + projectID + "/govern"
-		lager.Logger.Info("Use Service center v4")
+		openlogging.GetLogger().Info("Use Service center v4")
 	}
 }
 
@@ -170,7 +170,7 @@ func (c *RegistryClient) SyncEndpoints() error {
 	}
 	if len(eps) != 0 {
 		c.Config.Addresses = eps
-		lager.Logger.Info("Sync service center endpoints " + strings.Join(eps, ","))
+		openlogging.GetLogger().Info("Sync service center endpoints " + strings.Join(eps, ","))
 		return nil
 	}
 	return fmt.Errorf("sync endpoints failed")
@@ -525,7 +525,7 @@ func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServi
 		r := resp.Header.Get(HeaderRevision)
 		if r != c.revision && r != "" {
 			c.revision = r
-			lager.Logger.Debug("Instance got new revision " + c.revision)
+			openlogging.GetLogger().Debug("Instance got new revision " + c.revision)
 		}
 
 		return response.Instances, nil

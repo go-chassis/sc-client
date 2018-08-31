@@ -6,11 +6,24 @@ import (
 	"testing"
 
 	"github.com/go-chassis/go-chassis/core/lager"
+	"github.com/go-chassis/paas-lager"
+	"github.com/go-mesh/openlogging"
 	"os"
 	"time"
 )
 
+func init() {
+	log.Init(log.Config{
+		LoggerLevel:   "DEBUG",
+		EnableRsyslog: false,
+		LogFormatText: true,
+		Writers:       []string{"stdout"},
+	})
+	l := log.NewLogger("test")
+	openlogging.SetLogger(l)
+}
 func TestLoadbalance(t *testing.T) {
+
 	t.Log("Testing Round robin function")
 	var sArr []string
 
@@ -35,11 +48,9 @@ func TestLoadbalanceEmpty(t *testing.T) {
 func TestClientInitializeHttpErr(t *testing.T) {
 	t.Log("Testing for HTTPDo function with errors")
 
-	lager.Initialize("", "INFO", "", "size", true, 1, 10, 7)
-
 	hostname, err := os.Hostname()
 	if err != nil {
-		lager.Logger.Error("Get hostname failed.", err)
+		openlogging.GetLogger().Error("Get hostname failed.")
 		return
 	}
 	microServiceInstance := &client.MicroServiceInstance{
@@ -201,7 +212,7 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		lager.Logger.Error("Get hostname failed.", err)
+		openlogging.GetLogger().Error("Get hostname failed.")
 		return
 	}
 	ms := &client.MicroService{

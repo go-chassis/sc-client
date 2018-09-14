@@ -1,15 +1,17 @@
 package client_test
 
 import (
+	"testing"
+
 	"github.com/go-chassis/go-sc-client"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"os"
+	"time"
 
 	"github.com/go-chassis/go-chassis/core/lager"
 	"github.com/go-chassis/paas-lager"
 	"github.com/go-mesh/openlogging"
-	"os"
-	"time"
 )
 
 func init() {
@@ -103,11 +105,11 @@ func TestClientInitializeHttpErr(t *testing.T) {
 
 	msdepArr = append(msdepArr, msdep1)
 	msdepArr = append(msdepArr, msdep2)
-
-	ms.AppID = MSList[0].AppID
-	ms.ServiceName = MSList[0].ServiceName
-	ms.Version = MSList[0].Version
-	ms.Environment = MSList[0].Environment
+	ms = MSList[0]
+	//ms.AppID = MSList[0].AppID
+	//ms.ServiceName = MSList[0].ServiceName
+	//ms.Version = MSList[0].Version
+	//ms.Environment = MSList[0].Environment
 	ms.Properties = m
 
 	msdepreq.Dependencies = msdepArr

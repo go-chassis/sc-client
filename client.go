@@ -4,10 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cenkalti/backoff"
-	"github.com/go-chassis/go-chassis/pkg/httpclient"
-	"github.com/go-mesh/openlogging"
-	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,6 +12,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/backoff"
+	"github.com/go-chassis/go-chassis/pkg/httpclient"
+	"github.com/go-mesh/openlogging"
+	"github.com/gorilla/websocket"
 )
 
 // Define constants for the client
@@ -49,6 +50,8 @@ var (
 	ErrNotModified = errors.New("instance is not changed since last query")
 	//ErrMicroServiceExists means service is registered
 	ErrMicroServiceExists = errors.New("micro-service already exists")
+	// ErrMicroServiceNotExists means service is not exists
+	ErrMicroServiceNotExists = errors.New("micro-service does not exist")
 )
 
 // RegistryClient is a structure for the client to communicate to Service-Center
@@ -532,6 +535,11 @@ func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServi
 	}
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, ErrNotModified
+	}
+	if resp.StatusCode == http.StatusBadRequest {
+		if strings.Contains(string(body), "\"errorCode\":\"400012\"") {
+			return nil, ErrMicroServiceNotExists
+		}
 	}
 	return nil, fmt.Errorf("FindMicroServiceInstances failed, appID/MicroServiceName/version: %s/%s/%s, response StatusCode: %d, response body: %s",
 		appID, microServiceName, versionRule, resp.StatusCode, string(body))

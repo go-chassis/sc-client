@@ -273,4 +273,8 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
 	assert.Equal(t, client.ErrNotModified, err)
+
+	_, err = registryClient.FindMicroServiceInstances(sid, "appIDNotExists", "ServerNotExists", "0.0.1")
+	assert.Equal(t, client.ErrMicroServiceNotExists, err)
+
 }

@@ -144,8 +144,8 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	assert.NoError(t, err)
 
 	str, err := registryClient.RegisterService(ms)
-	assert.Empty(t, str)
-	assert.Error(t, err)
+	assert.NotEmpty(t, str)
+	assert.NoError(t, err)
 
 	str, err = registryClient.RegisterService(nil)
 	assert.Empty(t, str)

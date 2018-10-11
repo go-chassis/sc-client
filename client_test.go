@@ -1,15 +1,17 @@
 package client_test
 
 import (
+	"testing"
+
 	"github.com/go-chassis/go-sc-client"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"os"
+	"time"
 
 	"github.com/go-chassis/go-chassis/core/lager"
 	"github.com/go-chassis/paas-lager"
 	"github.com/go-mesh/openlogging"
-	"os"
-	"time"
 )
 
 func init() {
@@ -44,7 +46,52 @@ func TestLoadbalanceEmpty(t *testing.T) {
 	assert.Error(t, err)
 
 }
+func TestSetHeader(t *testing.T) {
+	t.Log("Testing for header set value and header add value")
 
+	registryClient := &client.RegistryClient{}
+	err := registryClient.Initialize(
+		client.Options{
+			Addrs: []string{"127.0.0.1:30100"},
+		})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, registryClient.GetRegistryClientHeader())
+
+	t.Log("Testing header set")
+	registryClient.SetHeaderContentType(client.JSONContentTypeValue)
+	registryClient.SetHeaderUserAgent(client.DefaultUserAgentValue)
+	registryClient.SetTenantHeader("go-sc-client")
+
+	header := registryClient.GetRegistryClientHeader()
+	assert.Equal(t, header.Get(client.HeaderContentType), client.JSONContentTypeValue)
+	assert.Equal(t, header.Get(client.HeaderUserAgent), client.DefaultUserAgentValue)
+	assert.Equal(t, header.Get(client.TenantHeader), "go-sc-client")
+
+	t.Log("Testing header add")
+	registryClient.NewHeaders(nil)
+
+	registryClient.AddTenantHeader("tenant-header1", "tenant-header2")
+	registryClient.AddHeaderContentType("header-content-type1", "header-content-type2")
+	registryClient.AddHeaderUserAgent("header-user-agent1", "header-user-agent2")
+	header = registryClient.GetRegistryClientHeader()
+	assert.Equal(t, header.Get(client.TenantHeader), "tenant-header1", "tenant-header2")
+	assert.Equal(t, header.Get(client.HeaderContentType), "header-content-type1", "header-content-type2")
+	assert.Equal(t, header.Get(client.HeaderUserAgent), "header-user-agent1", "header-user-agent2")
+
+	resp, err := registryClient.HTTPDo("GET", "fakeRawUrl", header, []byte("fakeBody"))
+	assert.Empty(t, resp)
+	assert.Error(t, err)
+
+	registryClient.NewHeaders(
+		map[string][]string{
+			client.TenantHeader:      {client.DefaultTenantHeaderValue},
+			client.HeaderUserAgent:   {client.DefaultUserAgentValue},
+			client.HeaderContentType: {client.JSONContentTypeValue},
+		})
+	newHeader := registryClient.GetRegistryClientHeader()
+	defaultHeader := registryClient.GetDefaultHeaders()
+	assert.Equal(t, newHeader, defaultHeader)
+}
 func TestClientInitializeHttpErr(t *testing.T) {
 	t.Log("Testing for HTTPDo function with errors")
 

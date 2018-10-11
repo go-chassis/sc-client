@@ -4,10 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cenkalti/backoff"
-	"github.com/go-chassis/go-chassis/pkg/httpclient"
-	"github.com/go-mesh/openlogging"
-	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,6 +12,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/backoff"
+	"github.com/go-chassis/go-chassis/pkg/httpclient"
+	"github.com/go-mesh/openlogging"
+	"github.com/gorilla/websocket"
 )
 
 // Define constants for the client
@@ -36,6 +37,10 @@ const (
 	DefaultRetryTimeout = 500 * time.Millisecond
 	HeaderRevision      = "X-Resource-Revision"
 	EnvProjectID        = "CSE_PROJECT_ID"
+
+	JSONContentTypeValue     = "application/json"
+	DefaultUserAgentValue    = "cse-serviceregistry-client/1.0.0"
+	DefaultTenantHeaderValue = "default"
 )
 
 // Define variables for the client
@@ -59,11 +64,12 @@ type RegistryClient struct {
 	client     *httpclient.URLClient
 	protocol   string
 	watchers   map[string]bool
-	mutex      sync.Mutex
+	mutex      sync.RWMutex
 	wsDialer   *websocket.Dialer
 	conns      map[string]*websocket.Conn
 	apiVersion string
 	revision   string
+	header     http.Header
 }
 
 // RegistryConfig is a structure to store registry configurations like address of cc, ssl configurations and tenant name
@@ -127,7 +133,8 @@ func (c *RegistryClient) Initialize(opt Options) (err error) {
 	}
 	//Update the API Base Path based on the Version
 	c.updateAPIPath()
-
+	// use default header
+	c.header = defaultHeader()
 	return nil
 }
 
@@ -198,12 +205,74 @@ func (c *RegistryClient) encodeParams(params []URLParameter) string {
 
 // GetDefaultHeaders gets the default headers for each request to be made to Service-Center
 func (c *RegistryClient) GetDefaultHeaders() http.Header {
-	headers := http.Header{
-		HeaderContentType: []string{"application/json"},
-		HeaderUserAgent:   []string{"cse-serviceregistry-client/1.0.0"},
-		TenantHeader:      []string{"default"},
+
+	return defaultHeader()
+}
+
+// NewHeaders the func get new headers of you set
+func (c *RegistryClient) NewHeaders(headerMap map[string][]string) {
+	c.header = newHeader(headerMap)
+}
+
+// GetRegistryClientHeader gets the  headers for request of client
+func (c *RegistryClient) GetRegistryClientHeader() http.Header {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.header
+}
+
+// SetTenantHeader set custom TenantHeader value
+func (c *RegistryClient) SetTenantHeader(tenantHeaderValue ...string) {
+	c.setHeaderValue(TenantHeader, tenantHeaderValue)
+}
+
+// SetHeaderContentType set custom content type
+func (c *RegistryClient) SetHeaderContentType(contentTypeValue ...string) {
+	c.setHeaderValue(HeaderContentType, contentTypeValue)
+}
+
+// SetHeaderUserAgent  set custom HeaderUserAgent
+func (c *RegistryClient) SetHeaderUserAgent(userAgentValue ...string) {
+	c.setHeaderValue(HeaderUserAgent, userAgentValue)
+}
+
+// AddTenantHeader add custom TenantHeader value
+func (c *RegistryClient) AddTenantHeader(tenantHeaderValue ...string) {
+	c.addHeaderValue(TenantHeader, tenantHeaderValue)
+}
+
+// AddHeaderContentType add custom content type
+func (c *RegistryClient) AddHeaderContentType(contentTypeValue ...string) {
+	c.addHeaderValue(HeaderContentType, contentTypeValue)
+}
+
+// AddHeaderUserAgent  add custom HeaderUserAgent
+func (c *RegistryClient) AddHeaderUserAgent(userAgentValue ...string) {
+	c.addHeaderValue(HeaderUserAgent, userAgentValue)
+}
+
+// addHeaderValue add new value of header
+func (c *RegistryClient) addHeaderValue(headerType string, value []string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if c.header == nil {
+		c.header = defaultHeader()
 	}
-	return headers
+	for _, v := range value {
+		c.header.Add(headerType, v)
+	}
+}
+
+// setHeaderValue set header
+func (c *RegistryClient) setHeaderValue(headerType string, value []string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if c.header == nil {
+		c.header = defaultHeader()
+	}
+	for _, v := range value {
+		c.header.Set(headerType, v)
+	}
 }
 
 // HTTPDo makes the http request to Service-center with proper header, body and method
@@ -211,7 +280,8 @@ func (c *RegistryClient) HTTPDo(method string, rawURL string, headers http.Heade
 	if len(headers) == 0 {
 		headers = make(http.Header)
 	}
-	for k, v := range c.GetDefaultHeaders() {
+
+	for k, v := range c.header {
 		headers[k] = v
 	}
 	return c.client.HTTPDo(method, rawURL, headers, body)
@@ -942,4 +1012,20 @@ func getProtocolMap(eps []string) map[string]string {
 		m[u.Scheme] = u.Host
 	}
 	return m
+}
+
+func defaultHeader() http.Header {
+	return newHeader(map[string][]string{
+		HeaderContentType: {JSONContentTypeValue},
+		HeaderUserAgent:   {DefaultUserAgentValue},
+		TenantHeader:      {DefaultTenantHeaderValue},
+	})
+}
+
+func newHeader(headerMap map[string][]string) http.Header {
+	headers := make(http.Header)
+	for k, v := range headerMap {
+		headers[k] = v
+	}
+	return headers
 }

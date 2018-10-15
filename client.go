@@ -4,10 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cenkalti/backoff"
-	"github.com/go-chassis/go-chassis/pkg/httpclient"
-	"github.com/go-mesh/openlogging"
-	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,6 +12,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/backoff"
+	"github.com/go-chassis/go-chassis/pkg/httpclient"
+	"github.com/go-mesh/openlogging"
+	"github.com/gorilla/websocket"
 )
 
 // Define constants for the client
@@ -198,10 +199,15 @@ func (c *RegistryClient) encodeParams(params []URLParameter) string {
 
 // GetDefaultHeaders gets the default headers for each request to be made to Service-Center
 func (c *RegistryClient) GetDefaultHeaders() http.Header {
+
 	headers := http.Header{
 		HeaderContentType: []string{"application/json"},
 		HeaderUserAgent:   []string{"cse-serviceregistry-client/1.0.0"},
 		TenantHeader:      []string{"default"},
+	}
+
+	if c.Config.Tenant != "" {
+		headers.Set(TenantHeader, c.Config.Tenant)
 	}
 	return headers
 }

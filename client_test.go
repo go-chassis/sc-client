@@ -278,3 +278,17 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	assert.Equal(t, client.ErrMicroServiceNotExists, err)
 
 }
+func TestRegistryClient_GetDefaultHeaders(t *testing.T) {
+	registryClient := &client.RegistryClient{}
+
+	err := registryClient.Initialize(
+		client.Options{
+			Addrs:        []string{"127.0.0.1:30100"},
+			ConfigTenant: "go-sc-tenant",
+		})
+	assert.Nil(t, err)
+
+	header := registryClient.GetDefaultHeaders()
+	tenant := header.Get(client.TenantHeader)
+	assert.Equal(t, tenant, "go-sc-tenant")
+}

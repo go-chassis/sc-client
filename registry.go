@@ -61,6 +61,7 @@ type MicroService struct {
 	Framework   *Framework                `protobuf:"bytes,13,opt,name=framework" json:"framework,omitempty"`
 	RegisterBy  string                    `protobuf:"bytes,14,opt,name=registerBy" json:"registerBy,omitempty"`
 	Environment string                    `protobuf:"bytes,15,opt,name=environment" json:"environment,omitempty"`
+	Alias       string                    `protobuf:"bytes,13,opt,name=alias" json:"alias,omitempty"`
 }
 
 // Framework is a struct which contains name and version of the Framework

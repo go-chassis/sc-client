@@ -262,7 +262,7 @@ func (c *RegistryClient) RegisterService(microService *MicroService) (string, er
 		return response.ServiceID, nil
 	}
 	if resp.StatusCode == 400 {
-		return "", ErrMicroServiceExists
+		return "", fmt.Errorf("client seems to have erred, error: %s", body)
 	}
 	return "", fmt.Errorf("RegisterService failed, MicroServiceName/responseStatusCode/responsebody: %s/%d/%s",
 		microService.ServiceName, resp.StatusCode, string(body))

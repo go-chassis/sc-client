@@ -180,13 +180,14 @@ func (c *RegistryClient) SyncEndpoints() error {
 }
 
 func (c *RegistryClient) formatURL(api string, querys []URLParameter, options *CallOptions) string {
-	return URLBuilder{
+	builder := URLBuilder{
 		Protocol:      c.protocol,
 		Host:          c.getAddress(),
 		Path:          api,
 		URLParameters: querys,
 		CallOptions:   options,
-	}.String()
+	}
+	return builder.String()
 }
 
 // GetDefaultHeaders gets the default headers for each request to be made to Service-Center
@@ -508,7 +509,7 @@ func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOpti
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule
 func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServiceName,
 	versionRule string, opts ...CallOption) ([]*MicroServiceInstance, error) {
-	copts := &CallOptions{}
+	copts := &CallOptions{Revision: c.revision}
 	for _, opt := range opts {
 		opt(copts)
 	}

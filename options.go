@@ -24,12 +24,21 @@ type Options struct {
 //CallOptions is options when you call a API
 type CallOptions struct {
 	WithoutRevision bool
+	Revision        string
+	WithGlobal      bool
 }
 
 //WithoutRevision ignore current revision number
 func WithoutRevision() CallOption {
 	return func(o *CallOptions) {
 		o.WithoutRevision = true
+	}
+}
+
+//WithGlobal query resources include other aggregated SC
+func WithGlobal() CallOption {
+	return func(o *CallOptions) {
+		o.WithGlobal = true
 	}
 }
 

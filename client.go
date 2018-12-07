@@ -179,22 +179,15 @@ func (c *RegistryClient) SyncEndpoints() error {
 	return fmt.Errorf("sync endpoints failed")
 }
 
-func (c *RegistryClient) formatURL(format string, v ...interface{}) string {
-	return fmt.Sprintf("%s://%s%s", c.protocol, c.getAddress(), fmt.Sprintf(format, v...))
-
-}
-
-func (c *RegistryClient) encodeParams(params []URLParameter) string {
-	encoded := []string{}
-	for _, param := range params {
-		for k, v := range param {
-			if k == "" || v == "" {
-				continue
-			}
-			encoded = append(encoded, fmt.Sprintf("%s=%s", k, url.QueryEscape(v)))
-		}
+func (c *RegistryClient) formatURL(api string, querys []URLParameter, options *CallOptions) string {
+	builder := URLBuilder{
+		Protocol:      c.protocol,
+		Host:          c.getAddress(),
+		Path:          api,
+		URLParameters: querys,
+		CallOptions:   options,
 	}
-	return strings.Join(encoded, "&")
+	return builder.String()
 }
 
 // GetDefaultHeaders gets the default headers for each request to be made to Service-Center
@@ -235,7 +228,7 @@ func (c *RegistryClient) RegisterService(microService *MicroService) (string, er
 		Service: microService,
 	}
 
-	registerURL := c.formatURL("%s%s", MSAPIPath, MicroservicePath)
+	registerURL := c.formatURL(MSAPIPath+MicroservicePath, nil, nil)
 	body, err := json.Marshal(request)
 	if err != nil {
 		return "", NewJSONException(err, string(body))
@@ -269,8 +262,12 @@ func (c *RegistryClient) RegisterService(microService *MicroService) (string, er
 }
 
 // GetProviders gets a list of provider for a particular consumer
-func (c *RegistryClient) GetProviders(consumer string) (*MicroServiceProvideresponse, error) {
-	providersURL := c.formatURL("%s%s/%s/providers", MSAPIPath, MicroservicePath, consumer)
+func (c *RegistryClient) GetProviders(consumer string, opts ...CallOption) (*MicroServiceProvideresponse, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	providersURL := c.formatURL(fmt.Sprintf("%s%s/%s/providers", MSAPIPath, MicroservicePath, consumer), nil, copts)
 	resp, err := c.HTTPDo("GET", providersURL, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Get Providers failed, error: %s, MicroServiceid: %s", err, consumer)
@@ -300,7 +297,7 @@ func (c *RegistryClient) AddDependencies(request *MircroServiceDependencyRequest
 	if request == nil {
 		return errors.New("invalid request parameter")
 	}
-	dependenciesURL := c.formatURL("%s%s", MSAPIPath, DependencyPath)
+	dependenciesURL := c.formatURL(MSAPIPath+DependencyPath, nil, nil)
 
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -327,7 +324,7 @@ func (c *RegistryClient) AddSchemas(microServiceID, schemaName, schemaInfo strin
 		return errors.New("invalid microserviceID")
 	}
 
-	schemaURL := c.formatURL("%s%s/%s%s/%s", MSAPIPath, MicroservicePath, microServiceID, SchemaPath, schemaName)
+	schemaURL := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s", MSAPIPath, MicroservicePath, microServiceID, SchemaPath, schemaName), nil, nil)
 	request := &MicroServiceInstanceSchemaUpdateRequest{
 		SchemaContent: schemaInfo,
 	}
@@ -354,11 +351,15 @@ func (c *RegistryClient) AddSchemas(microServiceID, schemaName, schemaInfo strin
 }
 
 // GetSchema gets Schema list for the microservice from service-center
-func (c *RegistryClient) GetSchema(microServiceID, schemaName string) ([]byte, error) {
+func (c *RegistryClient) GetSchema(microServiceID, schemaName string, opts ...CallOption) ([]byte, error) {
 	if microServiceID == "" {
 		return []byte(""), errors.New("invalid microserviceID")
 	}
-	url := c.formatURL("%s%s/%s/%s/%s", MSAPIPath, MicroservicePath, microServiceID, "schemas", schemaName)
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	url := c.formatURL(fmt.Sprintf("%s%s/%s/%s/%s", MSAPIPath, MicroservicePath, microServiceID, "schemas", schemaName), nil, copts)
 	resp, err := c.HTTPDo("GET", url, nil, nil)
 	if err != nil {
 		return []byte(""), err
@@ -379,14 +380,18 @@ func (c *RegistryClient) GetSchema(microServiceID, schemaName string) ([]byte, e
 }
 
 // GetMicroServiceID gets the microserviceid by appID, serviceName and version
-func (c *RegistryClient) GetMicroServiceID(appID, microServiceName, version, env string) (string, error) {
-	url := c.formatURL("%s%s?%s", MSAPIPath, ExistencePath, c.encodeParams([]URLParameter{
+func (c *RegistryClient) GetMicroServiceID(appID, microServiceName, version, env string, opts ...CallOption) (string, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	url := c.formatURL(MSAPIPath+ExistencePath, []URLParameter{
 		{"type": "microservice"},
 		{"appId": appID},
 		{"serviceName": microServiceName},
 		{"version": version},
 		{"env": env},
-	}))
+	}, copts)
 	resp, err := c.HTTPDo("GET", url, nil, nil)
 	if err != nil {
 		return "", err
@@ -412,8 +417,12 @@ func (c *RegistryClient) GetMicroServiceID(appID, microServiceName, version, env
 }
 
 // GetAllMicroServices gets list of all the microservices registered with Service-Center
-func (c *RegistryClient) GetAllMicroServices() ([]*MicroService, error) {
-	url := c.formatURL("%s%s", MSAPIPath, MicroservicePath)
+func (c *RegistryClient) GetAllMicroServices(opts ...CallOption) ([]*MicroService, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	url := c.formatURL(MSAPIPath+MicroservicePath, nil, copts)
 	resp, err := c.HTTPDo("GET", url, nil, nil)
 	if err != nil {
 		return nil, err
@@ -438,8 +447,12 @@ func (c *RegistryClient) GetAllMicroServices() ([]*MicroService, error) {
 }
 
 // GetAllApplications returns the list of all the applications which is registered in governance-center
-func (c *RegistryClient) GetAllApplications() ([]string, error) {
-	governanceURL := c.formatURL("%s%s", GovernAPIPATH, AppsPath)
+func (c *RegistryClient) GetAllApplications(opts ...CallOption) ([]string, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	governanceURL := c.formatURL(GovernAPIPATH+AppsPath, nil, copts)
 	resp, err := c.HTTPDo("GET", governanceURL, nil, nil)
 	if err != nil {
 		return nil, err
@@ -464,8 +477,12 @@ func (c *RegistryClient) GetAllApplications() ([]string, error) {
 }
 
 // GetMicroService returns the microservices by ID
-func (c *RegistryClient) GetMicroService(microServiceID string) (*MicroService, error) {
-	microserviceURL := c.formatURL("%s%s/%s", MSAPIPath, MicroservicePath, microServiceID)
+func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOption) (*MicroService, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	microserviceURL := c.formatURL(fmt.Sprintf("%s%s/%s", MSAPIPath, MicroservicePath, microServiceID), nil, copts)
 	resp, err := c.HTTPDo("GET", microserviceURL, nil, nil)
 	if err != nil {
 		return nil, err
@@ -492,25 +509,15 @@ func (c *RegistryClient) GetMicroService(microServiceID string) (*MicroService, 
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule
 func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServiceName,
 	versionRule string, opts ...CallOption) ([]*MicroServiceInstance, error) {
-	copts := &CallOptions{}
+	copts := &CallOptions{Revision: c.revision}
 	for _, opt := range opts {
 		opt(copts)
 	}
-	var microserviceInstanceURL string
-	if copts.WithoutRevision {
-		microserviceInstanceURL = c.formatURL("%s%s?%s", MSAPIPath, InstancePath, c.encodeParams([]URLParameter{
-			{"appId": appID},
-			{"serviceName": microServiceName},
-			{"version": versionRule},
-		}))
-	} else {
-		microserviceInstanceURL = c.formatURL("%s%s?%s", MSAPIPath, InstancePath, c.encodeParams([]URLParameter{
-			{"appId": appID},
-			{"serviceName": microServiceName},
-			{"version": versionRule},
-			{"rev": c.revision},
-		}))
-	}
+	microserviceInstanceURL := c.formatURL(MSAPIPath+InstancePath, []URLParameter{
+		{"appId": appID},
+		{"serviceName": microServiceName},
+		{"version": versionRule},
+	}, copts)
 
 	resp, err := c.HTTPDo("GET", microserviceInstanceURL, http.Header{"X-ConsumerId": []string{consumerID}}, nil)
 	if err != nil {
@@ -558,7 +565,7 @@ func (c *RegistryClient) RegisterMicroServiceInstance(microServiceInstance *Micr
 	request := &MicroServiceInstanceRequest{
 		Instance: microServiceInstance,
 	}
-	microserviceInstanceURL := c.formatURL("%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceInstance.ServiceID, InstancePath)
+	microserviceInstanceURL := c.formatURL(fmt.Sprintf("%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceInstance.ServiceID, InstancePath), nil, nil)
 	body, err := json.Marshal(request)
 	if err != nil {
 		return "", NewJSONException(err, string(body))
@@ -587,8 +594,12 @@ func (c *RegistryClient) RegisterMicroServiceInstance(microServiceInstance *Micr
 }
 
 // GetMicroServiceInstances queries the service-center with provider and consumer ID and returns the microservice-instance
-func (c *RegistryClient) GetMicroServiceInstances(consumerID, providerID string) ([]*MicroServiceInstance, error) {
-	url := c.formatURL("%s%s/%s%s", MSAPIPath, MicroservicePath, providerID, InstancePath)
+func (c *RegistryClient) GetMicroServiceInstances(consumerID, providerID string, opts ...CallOption) ([]*MicroServiceInstance, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	url := c.formatURL(fmt.Sprintf("%s%s/%s%s", MSAPIPath, MicroservicePath, providerID, InstancePath), nil, copts)
 	resp, err := c.HTTPDo("GET", url, http.Header{
 		"X-ConsumerId": []string{consumerID},
 	}, nil)
@@ -616,8 +627,14 @@ func (c *RegistryClient) GetMicroServiceInstances(consumerID, providerID string)
 }
 
 // GetAllResources retruns all the list of services, instances, providers, consumers in the service-center
-func (c *RegistryClient) GetAllResources(resource string) ([]*ServiceDetail, error) {
-	url := c.formatURL("%s/%s?options=%s", GovernAPIPATH, "microservices", resource)
+func (c *RegistryClient) GetAllResources(resource string, opts ...CallOption) ([]*ServiceDetail, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	url := c.formatURL(GovernAPIPATH+MicroservicePath, []URLParameter{
+		{"options": resource},
+	}, copts)
 	resp, err := c.HTTPDo("GET", url, nil, nil)
 	if err != nil {
 		return nil, err
@@ -645,9 +662,9 @@ func (c *RegistryClient) GetAllResources(resource string) ([]*ServiceDetail, err
 func (c *RegistryClient) Health() ([]*MicroServiceInstance, error) {
 	url := ""
 	if c.apiVersion == "v4" {
-		url = c.formatURL("/%s/%s", MSAPIPath, "health")
+		url = c.formatURL(MSAPIPath+"/health", nil, nil)
 	} else {
-		url = c.formatURL("/%s", "health")
+		url = c.formatURL("/health", nil, nil)
 	}
 
 	resp, err := c.HTTPDo("GET", url, nil, nil)
@@ -676,8 +693,8 @@ func (c *RegistryClient) Health() ([]*MicroServiceInstance, error) {
 
 // Heartbeat sends the heartbeat to service-senter for particular service-instance
 func (c *RegistryClient) Heartbeat(microServiceID, microServiceInstanceID string) (bool, error) {
-	url := c.formatURL("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID,
-		InstancePath, microServiceInstanceID, HeartbeatPath)
+	url := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID,
+		InstancePath, microServiceInstanceID, HeartbeatPath), nil, nil)
 	resp, err := c.HTTPDo("PUT", url, nil, nil)
 	if err != nil {
 		return false, err
@@ -697,8 +714,8 @@ func (c *RegistryClient) Heartbeat(microServiceID, microServiceInstanceID string
 
 // UnregisterMicroServiceInstance un-registers the microservice instance from the service-center
 func (c *RegistryClient) UnregisterMicroServiceInstance(microServiceID, microServiceInstanceID string) (bool, error) {
-	url := c.formatURL("%s%s/%s%s/%s", MSAPIPath, MicroservicePath, microServiceID,
-		InstancePath, microServiceInstanceID)
+	url := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s", MSAPIPath, MicroservicePath, microServiceID,
+		InstancePath, microServiceInstanceID), nil, nil)
 	resp, err := c.HTTPDo("DELETE", url, nil, nil)
 	if err != nil {
 		return false, err
@@ -718,7 +735,9 @@ func (c *RegistryClient) UnregisterMicroServiceInstance(microServiceID, microSer
 
 // UnregisterMicroService un-registers the microservice from the service-center
 func (c *RegistryClient) UnregisterMicroService(microServiceID string) (bool, error) {
-	url := c.formatURL("%s%s/%s?force=1", MSAPIPath, MicroservicePath, microServiceID)
+	url := c.formatURL(fmt.Sprintf("%s%s/%s", MSAPIPath, MicroservicePath, microServiceID), []URLParameter{
+		{"force": "1"},
+	}, nil)
 	resp, err := c.HTTPDo("DELETE", url, nil, nil)
 	if err != nil {
 		return false, err
@@ -738,8 +757,10 @@ func (c *RegistryClient) UnregisterMicroService(microServiceID string) (bool, er
 
 // UpdateMicroServiceInstanceStatus updates the microservicve instance status in service-center
 func (c *RegistryClient) UpdateMicroServiceInstanceStatus(microServiceID, microServiceInstanceID, status string) (bool, error) {
-	url := c.formatURL("%s%s/%s%s/%s%s?value=%s", MSAPIPath, MicroservicePath, microServiceID,
-		InstancePath, microServiceInstanceID, StatusPath, status)
+	url := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID,
+		InstancePath, microServiceInstanceID, StatusPath), []URLParameter{
+		{"value": status},
+	}, nil)
 	resp, err := c.HTTPDo("PUT", url, nil, nil)
 	if err != nil {
 		return false, err
@@ -766,7 +787,7 @@ func (c *RegistryClient) UpdateMicroServiceInstanceProperties(microServiceID, mi
 	request := &MicroServiceInstanceRequest{
 		Instance: microServiceInstance,
 	}
-	url := c.formatURL("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID, InstancePath, microServiceInstanceID, PropertiesPath)
+	url := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID, InstancePath, microServiceInstanceID, PropertiesPath), nil, nil)
 	body, err := json.Marshal(request.Instance)
 	if err != nil {
 		return false, NewJSONException(err, string(body))
@@ -799,7 +820,7 @@ func (c *RegistryClient) UpdateMicroServiceProperties(microServiceID string, mic
 	request := &MicroServiceRequest{
 		Service: microService,
 	}
-	url := c.formatURL("%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID, PropertiesPath)
+	url := c.formatURL(fmt.Sprintf("%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID, PropertiesPath), nil, nil)
 	body, err := json.Marshal(request.Service)
 	if err != nil {
 		return false, NewJSONException(err, string(body))

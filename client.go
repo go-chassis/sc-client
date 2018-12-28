@@ -13,8 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"crypto/sha256"
 	"github.com/cenkalti/backoff"
 	"github.com/go-chassis/go-chassis/pkg/httpclient"
+	"github.com/go-chassis/go-sc-client/proto"
 	"github.com/go-mesh/openlogging"
 	"github.com/gorilla/websocket"
 )
@@ -270,10 +272,10 @@ func (c *RegistryClient) GetProviders(consumer string, opts ...CallOption) (*Mic
 	providersURL := c.formatURL(fmt.Sprintf("%s%s/%s/providers", MSAPIPath, MicroservicePath, consumer), nil, copts)
 	resp, err := c.HTTPDo("GET", providersURL, nil, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Get Providers failed, error: %s, MicroServiceid: %s", err, consumer)
+		return nil, fmt.Errorf("get Providers failed, error: %s, MicroServiceid: %s", err, consumer)
 	}
 	if resp == nil {
-		return nil, fmt.Errorf("Get Providers failed, response is empty, MicroServiceid: %s", consumer)
+		return nil, fmt.Errorf("get Providers failed, response is empty, MicroServiceid: %s", consumer)
 	}
 	var body []byte
 	body, err = ioutil.ReadAll(resp.Body)
@@ -312,7 +314,7 @@ func (c *RegistryClient) AddDependencies(request *MircroServiceDependencyRequest
 		return fmt.Errorf("AddDependencies failed, response is empty")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return NewCommonException("add microservice dependencies failed. response StatusCode: %d, response body: %s",
+		return NewCommonException("add micro service dependencies failed. response StatusCode: %d, response body: %s",
 			resp.StatusCode, string(body))
 	}
 	return nil
@@ -321,12 +323,20 @@ func (c *RegistryClient) AddDependencies(request *MircroServiceDependencyRequest
 // AddSchemas adds a schema contents to the services registered in service-center
 func (c *RegistryClient) AddSchemas(microServiceID, schemaName, schemaInfo string) error {
 	if microServiceID == "" {
-		return errors.New("invalid microserviceID")
+		return errors.New("invalid micro service ID")
 	}
 
 	schemaURL := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s", MSAPIPath, MicroservicePath, microServiceID, SchemaPath, schemaName), nil, nil)
-	request := &MicroServiceInstanceSchemaUpdateRequest{
-		SchemaContent: schemaInfo,
+	h := sha256.New()
+	_, err := h.Write([]byte(schemaInfo))
+	if err != nil {
+		return err
+	}
+	request := &proto.ModifySchemaRequest{
+		SchemaId:  schemaName,
+		ServiceId: microServiceID,
+		Schema:    schemaInfo,
+		Summary:   fmt.Sprintf("%x", h.Sum(nil)),
 	}
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -339,7 +349,7 @@ func (c *RegistryClient) AddSchemas(microServiceID, schemaName, schemaInfo strin
 	}
 
 	if resp == nil {
-		return fmt.Errorf("Addschemas failed, response is empty")
+		return fmt.Errorf("add schemas failed, response is empty")
 	}
 
 	if resp.StatusCode != http.StatusOK {

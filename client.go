@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"crypto/sha256"
 	"github.com/cenkalti/backoff"
 	"github.com/go-chassis/go-chassis/pkg/httpclient"
+	"github.com/go-chassis/go-chassis/pkg/util/httputil"
 	"github.com/go-chassis/go-sc-client/proto"
 	"github.com/go-mesh/openlogging"
 	"github.com/gorilla/websocket"
@@ -25,6 +25,7 @@ import (
 const (
 	MicroservicePath    = "/microservices"
 	InstancePath        = "/instances"
+	BatchInstancePath   = "/instances/action"
 	SchemaPath          = "/schemas"
 	HeartbeatPath       = "/heartbeat"
 	ExistencePath       = "/existence"
@@ -116,15 +117,10 @@ func (c *RegistryClient) Initialize(opt Options) (err error) {
 
 	//Set the API Version based on the value set in chassis.yaml cse.service.registry.api.version
 	//Default Value Set to V4
+	opt.Version = strings.ToLower(opt.Version)
 	switch opt.Version {
 	case "v3":
 		c.apiVersion = "v3"
-	case "V3":
-		c.apiVersion = "v3"
-	case "v4":
-		c.apiVersion = "v4"
-	case "V4":
-		c.apiVersion = "v4"
 	default:
 		c.apiVersion = "v4"
 	}
@@ -136,7 +132,6 @@ func (c *RegistryClient) Initialize(opt Options) (err error) {
 
 // updateAPIPath Updates the Base PATH anf HEADERS Based on the version of SC used.
 func (c *RegistryClient) updateAPIPath() {
-
 	//Check for the env Name in Container to get Domain Name
 	//Default value is  "default"
 	projectID, isExist := os.LookupEnv(EnvProjectID)
@@ -144,11 +139,6 @@ func (c *RegistryClient) updateAPIPath() {
 		projectID = "default"
 	}
 	switch c.apiVersion {
-	case "v4":
-		MSAPIPath = "/v4/" + projectID + "/registry"
-		TenantHeader = TenantHeader
-		GovernAPIPATH = "/v4/" + projectID + "/govern"
-		openlogging.GetLogger().Info("Use Service center v4")
 	case "v3":
 		MSAPIPath = APIPath
 		TenantHeader = "X-Tenant-Name"
@@ -156,7 +146,6 @@ func (c *RegistryClient) updateAPIPath() {
 		openlogging.GetLogger().Info("Use Service center v3")
 	default:
 		MSAPIPath = "/v4/" + projectID + "/registry"
-		TenantHeader = TenantHeader
 		GovernAPIPATH = "/v4/" + projectID + "/govern"
 		openlogging.GetLogger().Info("Use Service center v4")
 	}
@@ -168,7 +157,7 @@ func (c *RegistryClient) SyncEndpoints() error {
 	if err != nil {
 		return fmt.Errorf("sync SC ep failed. err:%s", err.Error())
 	}
-	eps := []string{}
+	eps := make([]string, 0)
 	for _, instance := range instances {
 		m := getProtocolMap(instance.Endpoints)
 		eps = append(eps, m["rest"])
@@ -290,7 +279,7 @@ func (c *RegistryClient) GetProviders(consumer string, opts ...CallOption) (*Mic
 		}
 		return p, nil
 	}
-	return nil, fmt.Errorf("Get Providers failed, MicroServiceid: %s, response StatusCode: %d, response body: %s",
+	return nil, fmt.Errorf("get Providers failed, MicroServiceid: %s, response StatusCode: %d, response body: %s",
 		consumer, resp.StatusCode, string(body))
 }
 
@@ -353,7 +342,7 @@ func (c *RegistryClient) AddSchemas(microServiceID, schemaName, schemaInfo strin
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return NewCommonException("add microservice schema failed. response StatusCode: %d, response body: %s",
+		return NewCommonException("add micro service schema failed. response StatusCode: %d, response body: %s",
 			resp.StatusCode, string(body))
 	}
 
@@ -363,7 +352,7 @@ func (c *RegistryClient) AddSchemas(microServiceID, schemaName, schemaInfo strin
 // GetSchema gets Schema list for the microservice from service-center
 func (c *RegistryClient) GetSchema(microServiceID, schemaName string, opts ...CallOption) ([]byte, error) {
 	if microServiceID == "" {
-		return []byte(""), errors.New("invalid microserviceID")
+		return []byte(""), errors.New("invalid micro service ID")
 	}
 	copts := &CallOptions{}
 	for _, opt := range opts {
@@ -514,6 +503,51 @@ func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOpti
 		return response.Service, nil
 	}
 	return nil, fmt.Errorf("GetMicroService failed, MicroServiceId: %s, response StatusCode: %d, response body: %s\n, microserviceURL: %s", microServiceID, resp.StatusCode, string(body), microserviceURL)
+}
+
+//BatchFindInstances fetch instances based on service name, env, app and version
+func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.FindService, opts ...CallOption) ([]*proto.MicroServiceInstance, error) {
+	copts := &CallOptions{Revision: c.revision}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	url := c.formatURL(MSAPIPath+BatchInstancePath, []URLParameter{
+		{"type": "query"},
+	}, copts)
+	r := &proto.BatchFindInstancesRequest{
+		ConsumerServiceID: consumerID,
+		Services:          keys,
+	}
+	rBody, err := json.Marshal(r)
+	if err != nil {
+		return nil, NewJSONException(err, string(rBody))
+	}
+	resp, err := c.HTTPDo("POST", url, http.Header{"X-ConsumerId": []string{consumerID}}, rBody)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("BatchFindInstances failed, response is empty")
+	}
+	body := httputil.ReadBody(resp)
+	if resp.StatusCode == 200 {
+		instances := make([]*proto.MicroServiceInstance, 0)
+		var response proto.BatchFindInstancesResponse
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			return nil, NewJSONException(err, string(body))
+		}
+		if response.Services != nil {
+			for _, result := range response.Services.Updated {
+				if len(result.Instances) == 0 {
+					continue
+				}
+				instances = append(instances, result.Instances...)
+			}
+		}
+		return instances, nil
+	}
+	return nil, fmt.Errorf("batch fined failed, status %d, body %s", resp.StatusCode, body)
 }
 
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule
@@ -946,37 +980,4 @@ func (c *RegistryClient) startBackOff(microServiceID string, callback func(*Micr
 	if err == nil {
 		return
 	}
-}
-
-func getBackOff(backoffType string) backoff.BackOff {
-	switch backoffType {
-	case "Exponential":
-		return &backoff.ExponentialBackOff{
-			InitialInterval:     1000 * time.Millisecond,
-			RandomizationFactor: backoff.DefaultRandomizationFactor,
-			Multiplier:          backoff.DefaultMultiplier,
-			MaxInterval:         30000 * time.Millisecond,
-			MaxElapsedTime:      10000 * time.Millisecond,
-			Clock:               backoff.SystemClock,
-		}
-	case "Constant":
-		return backoff.NewConstantBackOff(DefaultRetryTimeout * time.Millisecond)
-	case "Zero":
-		return &backoff.ZeroBackOff{}
-	default:
-		return backoff.NewConstantBackOff(DefaultRetryTimeout * time.Millisecond)
-	}
-}
-
-func getProtocolMap(eps []string) map[string]string {
-	m := make(map[string]string)
-	for _, ep := range eps {
-		u, err := url.Parse(ep)
-		if err != nil {
-			log.Println("URL error" + err.Error())
-			continue
-		}
-		m[u.Scheme] = u.Host
-	}
-	return m
 }

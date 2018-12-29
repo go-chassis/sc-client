@@ -506,7 +506,8 @@ func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOpti
 }
 
 //BatchFindInstances fetch instances based on service name, env, app and version
-func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.FindService, opts ...CallOption) ([]*proto.MicroServiceInstance, error) {
+//finally it return instances grouped by service name
+func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.FindService, opts ...CallOption) (map[string][]*proto.MicroServiceInstance, error) {
 	copts := &CallOptions{Revision: c.revision}
 	for _, opt := range opts {
 		opt(copts)
@@ -531,21 +532,31 @@ func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.Fin
 	}
 	body := httputil.ReadBody(resp)
 	if resp.StatusCode == 200 {
-		instances := make([]*proto.MicroServiceInstance, 0)
+		instanceMap := make(map[string][]*proto.MicroServiceInstance, 0)
 		var response proto.BatchFindInstancesResponse
 		err = json.Unmarshal(body, &response)
 		if err != nil {
 			return nil, NewJSONException(err, string(body))
 		}
 		if response.Services != nil {
-			for _, result := range response.Services.Updated {
+			for i, result := range response.Services.Updated {
 				if len(result.Instances) == 0 {
 					continue
 				}
-				instances = append(instances, result.Instances...)
+				for _, instance := range result.Instances {
+					instance.ServiceName = keys[i].Service.ServiceName
+					instance.App = keys[i].Service.AppId
+					instances, ok := instanceMap[instance.ServiceName]
+					if !ok {
+						instances = make([]*proto.MicroServiceInstance, 0)
+						instanceMap[instance.ServiceName] = instances
+					}
+					instanceMap[instance.ServiceName] = append(instances, instance)
+				}
+
 			}
 		}
-		return instances, nil
+		return instanceMap, nil
 	}
 	return nil, fmt.Errorf("batch fined failed, status %d, body %s", resp.StatusCode, body)
 }

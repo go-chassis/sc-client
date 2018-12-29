@@ -1,5 +1,7 @@
 package client
 
+import "github.com/go-chassis/go-sc-client/proto"
+
 // ExistenceIDResponse is a structure for microservice with serviceID, schemaID and InstanceID
 type ExistenceIDResponse struct {
 	ServiceID  string `json:"serviceId,omitempty"`
@@ -19,7 +21,7 @@ type MicroServciesResponse struct {
 
 // MicroServiceInstancesResponse is a struct with instances information
 type MicroServiceInstancesResponse struct {
-	Instances []*MicroServiceInstance `json:"instances,omitempty"`
+	Instances []*proto.MicroServiceInstance `json:"instances,omitempty"`
 }
 
 // MicroServiceProvideresponse is a struct with provider information

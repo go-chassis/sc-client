@@ -290,14 +290,31 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	t.Log(instances)
 	assert.NoError(t, err)
 
-	f = &proto.FindService{
+	f1 := &proto.FindService{
 		Service: &proto.MicroServiceKey{
 			ServiceName: "empty",
 			AppId:       "default",
 			Version:     "0.0.1",
 		},
 	}
+	fs = []*proto.FindService{f1}
+	instances, err = registryClient.BatchFindInstances(sid, fs)
+	t.Log(instances)
+	assert.NoError(t, err)
+
+	f2 := &proto.FindService{
+		Service: &proto.MicroServiceKey{
+			ServiceName: "empty",
+			AppId:       "default",
+			Version:     "latest",
+		},
+	}
 	fs = []*proto.FindService{f}
+	instances, err = registryClient.BatchFindInstances(sid, fs)
+	t.Log(instances)
+	assert.NoError(t, err)
+
+	fs = []*proto.FindService{f, f2}
 	instances, err = registryClient.BatchFindInstances(sid, fs)
 	t.Log(instances)
 	assert.NoError(t, err)

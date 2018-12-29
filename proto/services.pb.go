@@ -2590,6 +2590,8 @@ func (m *HealthCheck) GetUrl() string {
 }
 
 type MicroServiceInstance struct {
+	App                  string
+	ServiceName          string
 	InstanceId           string            `protobuf:"bytes,1,opt,name=instanceId,proto3" json:"instanceId,omitempty"`
 	ServiceId            string            `protobuf:"bytes,2,opt,name=serviceId,proto3" json:"serviceId,omitempty"`
 	Endpoints            []string          `protobuf:"bytes,3,rep,name=endpoints,proto3" json:"endpoints,omitempty"`

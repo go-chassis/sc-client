@@ -9,7 +9,7 @@ import (
 
 func TestModelException(t *testing.T) {
 	t.Log("Testing modelReg.Error function")
-	var modelReg *client.RegistyException = new(client.RegistyException)
+	var modelReg *client.RegistryException = new(client.RegistryException)
 	modelReg.Message = "Go-chassis"
 	modelReg.Title = "fakeTitle"
 
@@ -20,7 +20,7 @@ func TestModelException(t *testing.T) {
 
 func TestModelExceptionOrglErr(t *testing.T) {
 	t.Log("Testing modelReg.Error with title")
-	var modelReg *client.RegistyException = new(client.RegistyException)
+	var modelReg *client.RegistryException = new(client.RegistryException)
 	modelReg.Message = "Go-chassis"
 	modelReg.Title = "fakeTitle"
 	modelReg.OrglErr = errors.New("Invalid")
@@ -31,7 +31,7 @@ func TestModelExceptionOrglErr(t *testing.T) {
 }
 func TestNewCommonException(t *testing.T) {
 	t.Log("Testing NewCommonException function")
-	var re *client.RegistyException = new(client.RegistyException)
+	var re *client.RegistryException = new(client.RegistryException)
 	re.OrglErr = nil
 	re.Title = "Common exception"
 	re.Message = "fakeformat"
@@ -40,7 +40,7 @@ func TestNewCommonException(t *testing.T) {
 }
 func TestNewJsonException(t *testing.T) {
 	t.Log("Testing NewJSONException function")
-	var re1 *client.RegistyException = new(client.RegistyException)
+	var re1 *client.RegistryException = new(client.RegistryException)
 	re1.OrglErr = errors.New("Invalid")
 	re1.Title = "JSON exception"
 	re1.Message = "args1"
@@ -48,7 +48,7 @@ func TestNewJsonException(t *testing.T) {
 	err := client.NewJSONException(errors.New("Invalid"), "args1")
 	assert.Equal(t, re1, err)
 
-	var re2 *client.RegistyException = new(client.RegistyException)
+	var re2 *client.RegistryException = new(client.RegistryException)
 	re2.OrglErr = errors.New("Invalid")
 	re2.Title = "JSON exception"
 	re2.Message = ""
@@ -56,7 +56,7 @@ func TestNewJsonException(t *testing.T) {
 	err = client.NewJSONException(errors.New("Invalid"))
 	assert.Equal(t, re2, err)
 
-	var re3 *client.RegistyException = new(client.RegistyException)
+	var re3 *client.RegistryException = new(client.RegistryException)
 	re3.OrglErr = errors.New("Invalid")
 	re3.Title = "JSON exception"
 	re3.Message = "[1]"
@@ -68,7 +68,7 @@ func TestNewJsonException(t *testing.T) {
 
 func TestNewIOException(t *testing.T) {
 	t.Log("Testing NewIOException function")
-	var re1 *client.RegistyException = new(client.RegistyException)
+	var re1 *client.RegistryException = new(client.RegistryException)
 	re1.OrglErr = errors.New("Invalid")
 	re1.Title = "IO exception"
 	re1.Message = "args1"
@@ -76,7 +76,7 @@ func TestNewIOException(t *testing.T) {
 	err := client.NewIOException(errors.New("Invalid"), "args1")
 	assert.Equal(t, re1, err)
 
-	var re2 *client.RegistyException = new(client.RegistyException)
+	var re2 *client.RegistryException = new(client.RegistryException)
 	re2.OrglErr = errors.New("Invalid")
 	re2.Title = "IO exception"
 	re2.Message = ""
@@ -84,7 +84,7 @@ func TestNewIOException(t *testing.T) {
 	err = client.NewIOException(errors.New("Invalid"))
 	assert.Equal(t, re2, err)
 
-	var re3 *client.RegistyException = new(client.RegistyException)
+	var re3 *client.RegistryException = new(client.RegistryException)
 	re3.OrglErr = errors.New("Invalid")
 	re3.Title = "IO exception"
 	re3.Message = "[1]"

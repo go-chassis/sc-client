@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/go-chassis/go-chassis/core/lager"
+	"github.com/go-chassis/go-sc-client/proto"
 	"github.com/go-chassis/paas-lager"
 	"github.com/go-mesh/openlogging"
 	"os"
@@ -276,6 +277,30 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 
 	_, err = registryClient.FindMicroServiceInstances(sid, "appIDNotExists", "ServerNotExists", "0.0.1")
 	assert.Equal(t, client.ErrMicroServiceNotExists, err)
+
+	f := &proto.FindService{
+		Service: &proto.MicroServiceKey{
+			ServiceName: "Server",
+			AppId:       "default",
+			Version:     "0.0.1",
+		},
+	}
+	fs := []*proto.FindService{f}
+	instances, err := registryClient.BatchFindInstances(sid, fs)
+	t.Log(instances)
+	assert.NoError(t, err)
+
+	f = &proto.FindService{
+		Service: &proto.MicroServiceKey{
+			ServiceName: "empty",
+			AppId:       "default",
+			Version:     "0.0.1",
+		},
+	}
+	fs = []*proto.FindService{f}
+	instances, err = registryClient.BatchFindInstances(sid, fs)
+	t.Log(instances)
+	assert.NoError(t, err)
 
 }
 func TestRegistryClient_GetDefaultHeaders(t *testing.T) {

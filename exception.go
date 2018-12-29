@@ -4,15 +4,15 @@ import (
 	"fmt"
 )
 
-// RegistyException structure contains message and error information for the exception caused by service-center
-type RegistyException struct {
+// RegistryException structure contains message and error information for the exception caused by service-center
+type RegistryException struct {
 	Title   string
 	OrglErr error
 	Message string
 }
 
 // Error gets the Error message from the Error
-func (e *RegistyException) Error() string {
+func (e *RegistryException) Error() string {
 	if e.OrglErr == nil {
 		return fmt.Sprintf("%s(%s)", e.Title, e.Message)
 	}
@@ -30,8 +30,8 @@ func formatMessage(args []interface{}) string {
 	return fmt.Sprintf(format, args[1:]...)
 }
 
-func newException(t string, e error, message string) *RegistyException {
-	return &RegistyException{
+func newException(t string, e error, message string) *RegistryException {
+	return &RegistryException{
 		Title:   t,
 		OrglErr: e,
 		Message: message,

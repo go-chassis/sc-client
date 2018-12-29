@@ -1,5 +1,7 @@
 package client
 
+import "github.com/go-chassis/go-sc-client/proto"
+
 const (
 	//EventCreate is a constant of type string
 	EventCreate string = "CREATE"
@@ -35,7 +37,7 @@ type MicroServiceKey struct {
 	AppID       string `protobuf:"bytes,3,opt,name=appId" json:"appId,omitempty"`
 	ServiceName string `protobuf:"bytes,4,opt,name=serviceName" json:"serviceName,omitempty"`
 	Version     string `protobuf:"bytes,5,opt,name=version" json:"version,omitempty"`
-	ins         []MicroServiceInstance
+	ins         []proto.MicroServiceInstance
 }
 
 // ServicePath is a struct with path and property information
@@ -85,25 +87,11 @@ type DataCenterInfo struct {
 	AvailableZone string `protobuf:"bytes,3,opt,name=availableZone" json:"availableZone,omitempty"`
 }
 
-// MicroServiceInstance is a struct to store all the detailed information about micro-service information
-type MicroServiceInstance struct {
-	InstanceID     string            `protobuf:"bytes,1,opt,name=instanceId" json:"instanceId,omitempty"`
-	ServiceID      string            `protobuf:"bytes,2,opt,name=serviceId" json:"serviceId,omitempty"`
-	Endpoints      []string          `protobuf:"bytes,3,rep,name=endpoints" json:"endpoints,omitempty"`
-	HostName       string            `protobuf:"bytes,4,opt,name=hostName" json:"hostName,omitempty"`
-	Status         string            `protobuf:"bytes,5,opt,name=status" json:"status,omitempty"`
-	Properties     map[string]string `protobuf:"bytes,6,rep,name=properties" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	HealthCheck    *HealthCheck      `protobuf:"bytes,7,opt,name=healthCheck" json:"healthCheck,omitempty"`
-	Timestamp      string            `protobuf:"bytes,8,opt,name=timestamp" json:"timestamp,omitempty"`
-	DataCenterInfo *DataCenterInfo   `protobuf:"bytes,9,opt,name=dataCenterInfo" json:"dataCenterInfo,omitempty"`
-	Version        string            `protobuf:"bytes,11,opt,name=version" json:"version,omitempty"`
-}
-
 // MicroServiceInstanceChangedEvent is a struct to store the Changed event information
 type MicroServiceInstanceChangedEvent struct {
-	Action   string                `protobuf:"bytes,2,opt,name=action" json:"action,omitempty"`
-	Key      *MicroServiceKey      `protobuf:"bytes,3,opt,name=key" json:"key,omitempty"`
-	Instance *MicroServiceInstance `protobuf:"bytes,4,opt,name=instance" json:"instance,omitempty"`
+	Action   string                      `protobuf:"bytes,2,opt,name=action" json:"action,omitempty"`
+	Key      *MicroServiceKey            `protobuf:"bytes,3,opt,name=key" json:"key,omitempty"`
+	Instance *proto.MicroServiceInstance `protobuf:"bytes,4,opt,name=instance" json:"instance,omitempty"`
 }
 
 // MicroServiceInstanceKey is a struct to key ID's of the microservice
@@ -132,10 +120,10 @@ type GetServicesInfoResponse struct {
 
 // ServiceDetail is a struct to store all the relevant information for a microservice
 type ServiceDetail struct {
-	MicroService         *MicroService           `protobuf:"bytes,1,opt,name=microService" json:"microService,omitempty"`
-	Instances            []*MicroServiceInstance `protobuf:"bytes,2,rep,name=instances" json:"instances,omitempty"`
-	Providers            []*MicroService         `protobuf:"bytes,5,rep,name=providers" json:"providers,omitempty"`
-	Consumers            []*MicroService         `protobuf:"bytes,6,rep,name=consumers" json:"consumers,omitempty"`
-	Tags                 map[string]string       `protobuf:"bytes,7,rep,name=tags" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	MicroServiceVersions []string                `protobuf:"bytes,8,rep,name=microServiceVersions" json:"microServiceVersions,omitempty"`
+	MicroService         *MicroService                 `protobuf:"bytes,1,opt,name=microService" json:"microService,omitempty"`
+	Instances            []*proto.MicroServiceInstance `protobuf:"bytes,2,rep,name=instances" json:"instances,omitempty"`
+	Providers            []*MicroService               `protobuf:"bytes,5,rep,name=providers" json:"providers,omitempty"`
+	Consumers            []*MicroService               `protobuf:"bytes,6,rep,name=consumers" json:"consumers,omitempty"`
+	Tags                 map[string]string             `protobuf:"bytes,7,rep,name=tags" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	MicroServiceVersions []string                      `protobuf:"bytes,8,rep,name=microServiceVersions" json:"microServiceVersions,omitempty"`
 }

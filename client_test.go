@@ -54,7 +54,7 @@ func TestClientInitializeHttpErr(t *testing.T) {
 		openlogging.GetLogger().Error("Get hostname failed.")
 		return
 	}
-	microServiceInstance := &client.MicroServiceInstance{
+	microServiceInstance := &proto.MicroServiceInstance{
 		Endpoints: []string{"rest://127.0.0.1:3000"},
 		HostName:  hostname,
 		Status:    client.MSInstanceUP,
@@ -236,8 +236,8 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 		assert.NotNil(t, sid)
 	}
 
-	microServiceInstance := &client.MicroServiceInstance{
-		ServiceID: sid,
+	microServiceInstance := &proto.MicroServiceInstance{
+		ServiceId: sid,
 		Endpoints: []string{"rest://127.0.0.1:3000"},
 		HostName:  hostname,
 		Status:    client.MSInstanceUP,
@@ -257,8 +257,8 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Log("register new and find")
-	microServiceInstance2 := &client.MicroServiceInstance{
-		ServiceID: sid,
+	microServiceInstance2 := &proto.MicroServiceInstance{
+		ServiceId: sid,
 		Endpoints: []string{"rest://127.0.0.1:3001"},
 		HostName:  hostname + "1",
 		Status:    client.MSInstanceUP,

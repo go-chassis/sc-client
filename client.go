@@ -55,6 +55,8 @@ var (
 	ErrMicroServiceExists = errors.New("micro-service already exists")
 	// ErrMicroServiceNotExists means service is not exists
 	ErrMicroServiceNotExists = errors.New("micro-service does not exist")
+	//ErrEmptyCriteria means you gave an empty list of criteria
+	ErrEmptyCriteria = errors.New("batch find criteria is empty")
 )
 
 // RegistryClient is a structure for the client to communicate to Service-Center
@@ -512,6 +514,9 @@ func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.Fin
 	for _, opt := range opts {
 		opt(copts)
 	}
+	if len(keys) == 0 {
+		return nil, ErrEmptyCriteria
+	}
 	url := c.formatURL(MSAPIPath+BatchInstancePath, []URLParameter{
 		{"type": "query"},
 	}, copts)
@@ -523,6 +528,8 @@ func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.Fin
 	if err != nil {
 		return nil, NewJSONException(err, string(rBody))
 	}
+	openlogging.Debug("request uri:" + url)
+	openlogging.Debug("request body:" + string(rBody))
 	resp, err := c.HTTPDo("POST", url, http.Header{"X-ConsumerId": []string{consumerID}}, rBody)
 	if err != nil {
 		return nil, err
@@ -558,7 +565,7 @@ func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.Fin
 		}
 		return instanceMap, nil
 	}
-	return nil, fmt.Errorf("batch fined failed, status %d, body %s", resp.StatusCode, body)
+	return nil, fmt.Errorf("batch find failed, status %d, body %s", resp.StatusCode, body)
 }
 
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule

@@ -319,6 +319,9 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	t.Log(instances)
 	assert.NoError(t, err)
 
+	fs = []*proto.FindService{}
+	instances, err = registryClient.BatchFindInstances(sid, fs)
+	assert.Equal(t, client.ErrEmptyCriteria, err)
 }
 func TestRegistryClient_GetDefaultHeaders(t *testing.T) {
 	registryClient := &client.RegistryClient{}

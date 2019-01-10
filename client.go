@@ -210,7 +210,7 @@ func (c *RegistryClient) HTTPDo(method string, rawURL string, headers http.Heade
 }
 
 // RegisterService registers the micro-services to Service-Center
-func (c *RegistryClient) RegisterService(microService *MicroService) (string, error) {
+func (c *RegistryClient) RegisterService(microService *proto.MicroService) (string, error) {
 	if microService == nil {
 		return "", errors.New("invalid request MicroService parameter")
 	}
@@ -244,7 +244,7 @@ func (c *RegistryClient) RegisterService(microService *MicroService) (string, er
 		if err != nil {
 			return "", NewJSONException(err, string(body))
 		}
-		microService.ServiceID = response.ServiceID
+		microService.ServiceId = response.ServiceID
 		return response.ServiceID, nil
 	}
 	if resp.StatusCode == 400 {
@@ -418,7 +418,7 @@ func (c *RegistryClient) GetMicroServiceID(appID, microServiceName, version, env
 }
 
 // GetAllMicroServices gets list of all the microservices registered with Service-Center
-func (c *RegistryClient) GetAllMicroServices(opts ...CallOption) ([]*MicroService, error) {
+func (c *RegistryClient) GetAllMicroServices(opts ...CallOption) ([]*proto.MicroService, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -437,7 +437,7 @@ func (c *RegistryClient) GetAllMicroServices(opts ...CallOption) ([]*MicroServic
 		return nil, NewIOException(err)
 	}
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		var response MicroServciesResponse
+		var response proto.GetServicesResponse
 		err = json.Unmarshal(body, &response)
 		if err != nil {
 			return nil, NewJSONException(err, string(body))
@@ -478,7 +478,7 @@ func (c *RegistryClient) GetAllApplications(opts ...CallOption) ([]string, error
 }
 
 // GetMicroService returns the microservices by ID
-func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOption) (*MicroService, error) {
+func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOption) (*proto.MicroService, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -497,7 +497,7 @@ func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOpti
 		return nil, NewIOException(err)
 	}
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		var response MicroServiceResponse
+		var response proto.GetServiceResponse
 		err = json.Unmarshal(body, &response)
 		if err != nil {
 			return nil, NewJSONException(err, string(body))
@@ -875,7 +875,7 @@ func (c *RegistryClient) UpdateMicroServiceInstanceProperties(microServiceID, mi
 }
 
 // UpdateMicroServiceProperties updates the microservice properties in the servive-center
-func (c *RegistryClient) UpdateMicroServiceProperties(microServiceID string, microService *MicroService) (bool, error) {
+func (c *RegistryClient) UpdateMicroServiceProperties(microServiceID string, microService *proto.MicroService) (bool, error) {
 	if microService.Properties == nil {
 		return false, errors.New("invalid request parameter")
 	}

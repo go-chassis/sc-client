@@ -83,10 +83,10 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	assert.NoError(t, err)
 
 	f1 := func(*client.MicroServiceInstanceChangedEvent) {}
-	err = registryClient.WatchMicroService(MSList[0].ServiceID, f1)
+	err = registryClient.WatchMicroService(MSList[0].ServiceId, f1)
 	assert.NoError(t, err)
 
-	var ms = new(client.MicroService)
+	var ms = new(proto.MicroService)
 	var msdepreq = new(client.MircroServiceDependencyRequest)
 	var msdepArr []*client.MicroServiceDependency
 	var msdep1 = new(client.MicroServiceDependency)
@@ -97,7 +97,7 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	m["abc"] = "abc"
 	m["def"] = "def"
 
-	dep.AppID = "appid"
+	dep.AppID = "AppId"
 
 	msdep1.Consumer = dep
 	msdep2.Consumer = dep
@@ -105,7 +105,7 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	msdepArr = append(msdepArr, msdep1)
 	msdepArr = append(msdepArr, msdep2)
 
-	ms.AppID = MSList[0].AppID
+	ms.AppId = MSList[0].AppId
 	ms.ServiceName = MSList[0].ServiceName
 	ms.Version = MSList[0].Version
 	ms.Environment = MSList[0].Environment
@@ -128,12 +128,12 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	assert.NotEmpty(t, msArr)
 	assert.NoError(t, err)
 
-	b, err := registryClient.UpdateMicroServiceProperties(MSList[0].ServiceID, ms)
+	b, err := registryClient.UpdateMicroServiceProperties(MSList[0].ServiceId, ms)
 	assert.Equal(t, true, b)
 	assert.NoError(t, err)
 
 	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
-	err = registryClient.WatchMicroService(MSList[0].ServiceID, f1)
+	err = registryClient.WatchMicroService(MSList[0].ServiceId, f1)
 	assert.NoError(t, err)
 
 	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
@@ -141,7 +141,7 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	assert.Error(t, err)
 
 	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
-	err = registryClient.WatchMicroService(MSList[0].ServiceID, nil)
+	err = registryClient.WatchMicroService(MSList[0].ServiceId, nil)
 	assert.NoError(t, err)
 
 	str, err := registryClient.RegisterService(ms)
@@ -162,38 +162,38 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	err = registryClient.AddDependencies(nil)
 	assert.Error(t, err)
 
-	err = registryClient.AddSchemas(MSList[0].ServiceID, "schema", "schema")
+	err = registryClient.AddSchemas(MSList[0].ServiceId, "schema", "schema")
 	assert.NoError(t, err)
 
-	getms1, err := registryClient.GetMicroService(MSList[0].ServiceID)
+	getms1, err := registryClient.GetMicroService(MSList[0].ServiceId)
 	assert.NotEmpty(t, getms1)
 	assert.NoError(t, err)
 
-	getms2, err := registryClient.FindMicroServiceInstances("abcd", MSList[0].AppID, MSList[0].ServiceName, MSList[0].Version)
+	getms2, err := registryClient.FindMicroServiceInstances("abcd", MSList[0].AppId, MSList[0].ServiceName, MSList[0].Version)
 	assert.Empty(t, getms2)
 	assert.Error(t, err)
 
-	getmsstr, err := registryClient.GetMicroServiceID(MSList[0].AppID, MSList[0].ServiceName, MSList[0].Version, MSList[0].Environment)
+	getmsstr, err := registryClient.GetMicroServiceID(MSList[0].AppId, MSList[0].ServiceName, MSList[0].Version, MSList[0].Environment)
 	assert.NotEmpty(t, getmsstr)
 	assert.NoError(t, err)
 
-	getmsstr, err = registryClient.GetMicroServiceID(MSList[0].AppID, "Server112", MSList[0].Version, "")
+	getmsstr, err = registryClient.GetMicroServiceID(MSList[0].AppId, "Server112", MSList[0].Version, "")
 	assert.Empty(t, getmsstr)
 	//assert.Error(t, err)
 
 	ms.Properties = nil
-	b, err = registryClient.UpdateMicroServiceProperties(MSList[0].ServiceID, ms)
+	b, err = registryClient.UpdateMicroServiceProperties(MSList[0].ServiceId, ms)
 	assert.Equal(t, false, b)
 	assert.Error(t, err)
 
 	err = registryClient.AddSchemas("", "schema", "schema")
 	assert.Error(t, err)
 
-	b, err = registryClient.Heartbeat(MSList[0].ServiceID, "")
+	b, err = registryClient.Heartbeat(MSList[0].ServiceId, "")
 	assert.Equal(t, false, b)
 	assert.Error(t, err)
 
-	b, err = registryClient.UpdateMicroServiceInstanceStatus(MSList[0].ServiceID, "", MSList[0].Status)
+	b, err = registryClient.UpdateMicroServiceInstanceStatus(MSList[0].ServiceId, "", MSList[0].Status)
 	assert.Equal(t, false, b)
 	assert.Error(t, err)
 
@@ -216,9 +216,9 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 		openlogging.GetLogger().Error("Get hostname failed.")
 		return
 	}
-	ms := &client.MicroService{
+	ms := &proto.MicroService{
 		ServiceName: "Server",
-		AppID:       "default",
+		AppId:       "default",
 		Version:     "0.0.1",
 	}
 	var sid string
@@ -275,7 +275,7 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
 	assert.Equal(t, client.ErrNotModified, err)
 
-	_, err = registryClient.FindMicroServiceInstances(sid, "appIDNotExists", "ServerNotExists", "0.0.1")
+	_, err = registryClient.FindMicroServiceInstances(sid, "AppIdNotExists", "ServerNotExists", "0.0.1")
 	assert.Equal(t, client.ErrMicroServiceNotExists, err)
 
 	f := &proto.FindService{

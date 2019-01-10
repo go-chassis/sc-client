@@ -4,7 +4,7 @@ import "github.com/go-chassis/go-sc-client/proto"
 
 // MicroServiceRequest is a struct with microservice information
 type MicroServiceRequest struct {
-	Service *MicroService `json:"service"`
+	Service *proto.MicroService `json:"service"`
 }
 
 // MicroServiceInstanceRequest is struct with microservice instance information

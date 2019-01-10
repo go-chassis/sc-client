@@ -9,16 +9,6 @@ type ExistenceIDResponse struct {
 	InstanceID string `json:"instanceId,omitempty"`
 }
 
-// MicroServiceResponse is a struct with service information
-type MicroServiceResponse struct {
-	Service *MicroService `json:"service,omitempty"`
-}
-
-// MicroServciesResponse is a struct with services information
-type MicroServciesResponse struct {
-	Services []*MicroService `json:"services,omitempty"`
-}
-
 // MicroServiceInstancesResponse is a struct with instances information
 type MicroServiceInstancesResponse struct {
 	Instances []*proto.MicroServiceInstance `json:"instances,omitempty"`
@@ -26,7 +16,7 @@ type MicroServiceInstancesResponse struct {
 
 // MicroServiceProvideresponse is a struct with provider information
 type MicroServiceProvideresponse struct {
-	Services []*MicroService `json:"providers,omitempty"`
+	Services []*proto.MicroService `json:"providers,omitempty"`
 }
 
 // AppsResponse is a struct with list of app ID's

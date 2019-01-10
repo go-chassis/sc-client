@@ -46,26 +46,6 @@ type ServicePath struct {
 	Property map[string]string `protobuf:"bytes,2,rep,name=property" json:"property,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 }
 
-// MicroService is a struct with all detailed information of microservies
-type MicroService struct {
-	ServiceID   string                    `protobuf:"bytes,1,opt,name=serviceId" json:"serviceId,omitempty"`
-	AppID       string                    `protobuf:"bytes,2,opt,name=appId" json:"appId,omitempty"`
-	ServiceName string                    `protobuf:"bytes,3,opt,name=serviceName" json:"serviceName,omitempty"`
-	Version     string                    `protobuf:"bytes,4,opt,name=version" json:"version,omitempty"`
-	Description string                    `protobuf:"bytes,5,opt,name=description" json:"description,omitempty"`
-	Level       string                    `protobuf:"bytes,6,opt,name=level" json:"level,omitempty"`
-	Schemas     []string                  `protobuf:"bytes,7,rep,name=schemas" json:"schemas,omitempty"`
-	Paths       []*ServicePath            `protobuf:"bytes,10,rep,name=paths" json:"paths,omitempty"`
-	Status      string                    `protobuf:"bytes,8,opt,name=status" json:"status,omitempty"`
-	Properties  map[string]string         `protobuf:"bytes,9,rep,name=properties" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Timestamp   string                    `protobuf:"bytes,11,opt,name=timestamp" json:"timestamp,omitempty"`
-	Providers   []*DependencyMicroService `protobuf:"bytes,12,rep,name=providers" json:"providers,omitempty"`
-	Framework   *Framework                `protobuf:"bytes,13,opt,name=framework" json:"framework,omitempty"`
-	RegisterBy  string                    `protobuf:"bytes,14,opt,name=registerBy" json:"registerBy,omitempty"`
-	Environment string                    `protobuf:"bytes,15,opt,name=environment" json:"environment,omitempty"`
-	Alias       string                    `protobuf:"bytes,13,opt,name=alias" json:"alias,omitempty"`
-}
-
 // Framework is a struct which contains name and version of the Framework
 type Framework struct {
 	Name    string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
@@ -120,10 +100,10 @@ type GetServicesInfoResponse struct {
 
 // ServiceDetail is a struct to store all the relevant information for a microservice
 type ServiceDetail struct {
-	MicroService         *MicroService                 `protobuf:"bytes,1,opt,name=microService" json:"microService,omitempty"`
+	MicroService         *proto.MicroService           `protobuf:"bytes,1,opt,name=microService" json:"microService,omitempty"`
 	Instances            []*proto.MicroServiceInstance `protobuf:"bytes,2,rep,name=instances" json:"instances,omitempty"`
-	Providers            []*MicroService               `protobuf:"bytes,5,rep,name=providers" json:"providers,omitempty"`
-	Consumers            []*MicroService               `protobuf:"bytes,6,rep,name=consumers" json:"consumers,omitempty"`
+	Providers            []*proto.MicroService         `protobuf:"bytes,5,rep,name=providers" json:"providers,omitempty"`
+	Consumers            []*proto.MicroService         `protobuf:"bytes,6,rep,name=consumers" json:"consumers,omitempty"`
 	Tags                 map[string]string             `protobuf:"bytes,7,rep,name=tags" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	MicroServiceVersions []string                      `protobuf:"bytes,8,rep,name=microServiceVersions" json:"microServiceVersions,omitempty"`
 }

@@ -528,7 +528,6 @@ func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.Fin
 	if err != nil {
 		return nil, NewJSONException(err, string(rBody))
 	}
-	openlogging.Debug("request uri:" + url)
 	openlogging.Debug("request body:" + string(rBody))
 	resp, err := c.HTTPDo("POST", url, http.Header{"X-ConsumerId": []string{consumerID}}, rBody)
 	if err != nil {
@@ -538,31 +537,14 @@ func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*proto.Fin
 		return nil, fmt.Errorf("BatchFindInstances failed, response is empty")
 	}
 	body := httputil.ReadBody(resp)
+	openlogging.Debug("response body:" + string(body))
 	if resp.StatusCode == 200 {
-		instanceMap := make(map[string][]*proto.MicroServiceInstance, 0)
 		var response proto.BatchFindInstancesResponse
 		err = json.Unmarshal(body, &response)
 		if err != nil {
 			return nil, NewJSONException(err, string(body))
 		}
-		if response.Services != nil {
-			for i, result := range response.Services.Updated {
-				if len(result.Instances) == 0 {
-					continue
-				}
-				for _, instance := range result.Instances {
-					instance.ServiceName = keys[i].Service.ServiceName
-					instance.App = keys[i].Service.AppId
-					instances, ok := instanceMap[instance.ServiceName]
-					if !ok {
-						instances = make([]*proto.MicroServiceInstance, 0)
-						instanceMap[instance.ServiceName] = instances
-					}
-					instanceMap[instance.ServiceName] = append(instances, instance)
-				}
-
-			}
-		}
+		instanceMap := RegroupInstances(keys, response)
 		return instanceMap, nil
 	}
 	return nil, fmt.Errorf("batch find failed, status %d, body %s", resp.StatusCode, body)

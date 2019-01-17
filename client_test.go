@@ -314,7 +314,7 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	t.Log(instances)
 	assert.NoError(t, err)
 
-	fs = []*proto.FindService{f, f2}
+	fs = []*proto.FindService{f2, f}
 	instances, err = registryClient.BatchFindInstances(sid, fs)
 	t.Log(instances)
 	assert.NoError(t, err)

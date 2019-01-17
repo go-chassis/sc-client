@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"time"
+	"github.com/go-chassis/go-sc-client/proto"
 )
 
 func getBackOff(backoffType string) backoff.BackOff {
@@ -38,4 +39,27 @@ func getProtocolMap(eps []string) map[string]string {
 		m[u.Scheme] = u.Host
 	}
 	return m
+}
+
+func RegroupInstances(keys []*proto.FindService,response proto.BatchFindInstancesResponse) map[string][]*proto.MicroServiceInstance{
+	instanceMap := make(map[string][]*proto.MicroServiceInstance, 0)
+	if response.Services != nil {
+		for _, result := range response.Services.Updated {
+			if len(result.Instances) == 0 {
+				continue
+			}
+			for _, instance := range result.Instances {
+				instance.ServiceName = keys[result.Index].Service.ServiceName
+				instance.App = keys[result.Index].Service.AppId
+				instances, ok := instanceMap[instance.ServiceName]
+				if !ok {
+					instances = make([]*proto.MicroServiceInstance, 0)
+					instanceMap[instance.ServiceName] = instances
+				}
+				instanceMap[instance.ServiceName] = append(instances, instance)
+			}
+
+		}
+	}
+	return instanceMap
 }

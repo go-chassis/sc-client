@@ -7,3 +7,4 @@ This client implements all the [api's](https://rawcdn.githack.com/go-chassis/ser
 
 
  
+**NOTICE**: this client is migrate to github.com/go-chassis/go-chassis/pkg/scclient

@@ -1,69 +1,25 @@
-package client_test
+package sc_test
 
 import (
-	"github.com/go-chassis/go-sc-client"
+	"github.com/go-chassis/cari/discovery"
+	"github.com/go-chassis/sc-client"
 	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/go-chassis/go-chassis/core/lager"
-	"github.com/go-chassis/go-sc-client/proto"
-	"github.com/go-chassis/paas-lager"
-	"github.com/go-mesh/openlogging"
+	"github.com/go-chassis/openlog"
 	"os"
 	"time"
 )
 
-func init() {
-	log.Init(log.Config{
-		LoggerLevel:   "DEBUG",
-		EnableRsyslog: false,
-		LogFormatText: true,
-		Writers:       []string{"stdout"},
-	})
-	l := log.NewLogger("test")
-	openlogging.SetLogger(l)
-}
-func TestLoadbalance(t *testing.T) {
-
-	t.Log("Testing Round robin function")
-	var sArr []string
-
-	sArr = append(sArr, "s1")
-	sArr = append(sArr, "s2")
-
-	next := client.RoundRobin(sArr)
-	_, err := next()
-	assert.NoError(t, err)
-}
-
-func TestLoadbalanceEmpty(t *testing.T) {
-	t.Log("Testing Round robin with empty endpoint arrays")
-	var sArrEmpty []string
-
-	next := client.RoundRobin(sArrEmpty)
-	_, err := next()
-	assert.Error(t, err)
-
-}
-
-func TestClientInitializeHttpErr(t *testing.T) {
-	t.Log("Testing for HTTPDo function with errors")
-
+func TestNewClient(t *testing.T) {
 	hostname, err := os.Hostname()
 	if err != nil {
-		openlogging.GetLogger().Error("Get hostname failed.")
+		openlog.Error("Get hostname failed.")
 		return
 	}
-	microServiceInstance := &proto.MicroServiceInstance{
-		Endpoints: []string{"rest://127.0.0.1:3000"},
-		HostName:  hostname,
-		Status:    client.MSInstanceUP,
-	}
 
-	registryClient := &client.RegistryClient{}
-
-	err = registryClient.Initialize(
-		client.Options{
+	registryClient, err := sc.NewClient(
+		sc.Options{
 			Addrs: []string{"127.0.0.1:30100"},
 		})
 	assert.NoError(t, err)
@@ -74,36 +30,20 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	httpHeader := registryClient.GetDefaultHeaders()
 	assert.NotEmpty(t, httpHeader)
 
-	resp, err := registryClient.HTTPDo("GET", "fakeRawUrl", httpHeader, []byte("fakeBody"))
-	assert.Empty(t, resp)
-	assert.Error(t, err)
-
 	MSList, err := registryClient.GetAllMicroServices()
+	t.Log(MSList)
 	assert.NotEmpty(t, MSList)
 	assert.NoError(t, err)
 
-	f1 := func(*client.MicroServiceInstanceChangedEvent) {}
+	f1 := func(*sc.MicroServiceInstanceChangedEvent) {}
 	err = registryClient.WatchMicroService(MSList[0].ServiceId, f1)
 	assert.NoError(t, err)
 
-	var ms = new(proto.MicroService)
-	var msdepreq = new(client.MircroServiceDependencyRequest)
-	var msdepArr []*client.MicroServiceDependency
-	var msdep1 = new(client.MicroServiceDependency)
-	var msdep2 = new(client.MicroServiceDependency)
-	var dep = new(client.DependencyMicroService)
+	var ms = new(discovery.MicroService)
 	var m = make(map[string]string)
 
 	m["abc"] = "abc"
 	m["def"] = "def"
-
-	dep.AppID = "AppId"
-
-	msdep1.Consumer = dep
-	msdep2.Consumer = dep
-
-	msdepArr = append(msdepArr, msdep1)
-	msdepArr = append(msdepArr, msdep2)
 
 	ms.AppId = MSList[0].AppId
 	ms.ServiceName = MSList[0].ServiceName
@@ -111,7 +51,11 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	ms.Environment = MSList[0].Environment
 	ms.Properties = m
 
-	msdepreq.Dependencies = msdepArr
+	microServiceInstance := &discovery.MicroServiceInstance{
+		Endpoints: []string{"rest://127.0.0.1:3000"},
+		HostName:  hostname,
+		Status:    sc.MSInstanceUP,
+	}
 	s1, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
 	assert.Empty(t, s1)
 	assert.Error(t, err)
@@ -132,15 +76,15 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	assert.Equal(t, true, b)
 	assert.NoError(t, err)
 
-	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
+	f1 = func(*sc.MicroServiceInstanceChangedEvent) {}
 	err = registryClient.WatchMicroService(MSList[0].ServiceId, f1)
 	assert.NoError(t, err)
 
-	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
+	f1 = func(*sc.MicroServiceInstanceChangedEvent) {}
 	err = registryClient.WatchMicroService("", f1)
 	assert.Error(t, err)
 
-	f1 = func(*client.MicroServiceInstanceChangedEvent) {}
+	f1 = func(*sc.MicroServiceInstanceChangedEvent) {}
 	err = registryClient.WatchMicroService(MSList[0].ServiceId, nil)
 	assert.NoError(t, err)
 
@@ -151,19 +95,40 @@ func TestClientInitializeHttpErr(t *testing.T) {
 	str, err = registryClient.RegisterService(nil)
 	assert.Empty(t, str)
 	assert.Error(t, err)
+	t.Run("register service with name only", func(t *testing.T) {
+		sid, err := registryClient.RegisterService(&discovery.MicroService{
+			ServiceName: "simpleService",
+		})
+		assert.NotEmpty(t, sid)
+		assert.NoError(t, err)
+		s, err := registryClient.GetMicroService(sid)
+		assert.NoError(t, err)
+		t.Log(s)
+		assert.Equal(t, "0.0.1", s.Version)
+		assert.Equal(t, "default", s.AppId)
+		ok, err := registryClient.UnregisterMicroService(sid)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		s, err = registryClient.GetMicroService(sid)
+		assert.Nil(t, s)
+	})
+	t.Run("register service with invalid name", func(t *testing.T) {
+		_, err := registryClient.RegisterService(&discovery.MicroService{
+			ServiceName: "simple&Service",
+		})
+		t.Log(err)
+		assert.Error(t, err)
+	})
+	t.Run("get all apps", func(t *testing.T) {
+		apps, err := registryClient.GetAllApplications()
+		assert.NoError(t, err)
+		assert.NotEqual(t, 0, len(apps))
+		t.Log(apps)
 
+	})
 	ms1, err := registryClient.GetProviders("fakeconsumer")
 	assert.Empty(t, ms1)
 	assert.Error(t, err)
-
-	err = registryClient.AddDependencies(msdepreq)
-	assert.Error(t, err)
-
-	err = registryClient.AddDependencies(nil)
-	assert.Error(t, err)
-
-	err = registryClient.AddSchemas(MSList[0].ServiceId, "schema", "schema")
-	assert.NoError(t, err)
 
 	getms1, err := registryClient.GetMicroService(MSList[0].ServiceId)
 	assert.NotEmpty(t, getms1)
@@ -208,132 +173,149 @@ func TestClientInitializeHttpErr(t *testing.T) {
 
 }
 func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
-	lager.Initialize("", "DEBUG", "",
-		"size", true, 1, 10, 7)
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		openlogging.GetLogger().Error("Get hostname failed.")
+		openlog.Error("Get hostname failed.")
 		return
 	}
-	ms := &proto.MicroService{
-		ServiceName: "Server",
+	ms := &discovery.MicroService{
+		ServiceName: "scUTServer",
 		AppId:       "default",
 		Version:     "0.0.1",
+		Schemas:     []string{"schema"},
 	}
 	var sid string
-	registryClient := &client.RegistryClient{}
 
-	err = registryClient.Initialize(
-		client.Options{
+	registryClient, err := sc.NewClient(
+		sc.Options{
 			Addrs: []string{"127.0.0.1:30100"},
 		})
 	assert.NoError(t, err)
 	sid, err = registryClient.RegisterService(ms)
-	if err == client.ErrMicroServiceExists {
-		sid, err = registryClient.GetMicroServiceID("default", "Server", "0.0.1", "")
+
+	if err == sc.ErrMicroServiceExists {
+		sid, err = registryClient.GetMicroServiceID("default", "scUTServer", "0.0.1", "")
 		assert.NoError(t, err)
 		assert.NotNil(t, sid)
 	}
 
-	microServiceInstance := &proto.MicroServiceInstance{
+	err = registryClient.AddSchemas(ms.ServiceId, "schema", "schema")
+	assert.NoError(t, err)
+	t.Run("query schema, should return info", func(t *testing.T) {
+		b, err := registryClient.GetSchema(ms.ServiceId, "schema")
+		assert.NoError(t, err)
+		assert.Equal(t, "{\"schema\":\"schema\"}\n", string(b))
+	})
+	t.Run("query schema with empty string, should be err", func(t *testing.T) {
+		_, err := registryClient.GetSchema("", "schema")
+		assert.Error(t, err)
+	})
+	microServiceInstance := &discovery.MicroServiceInstance{
 		ServiceId: sid,
 		Endpoints: []string{"rest://127.0.0.1:3000"},
 		HostName:  hostname,
-		Status:    client.MSInstanceUP,
+		Status:    sc.MSInstanceUP,
 	}
+	t.Run("unregister instance, should success", func(t *testing.T) {
+		iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
+		assert.NoError(t, err)
+		assert.NotNil(t, iid)
+		ok, err := registryClient.UnregisterMicroServiceInstance(microServiceInstance.ServiceId, iid)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+	})
 
-	iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
-	assert.NotNil(t, iid)
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
-	assert.NoError(t, err)
+	t.Run("register instance and update props, should success", func(t *testing.T) {
+		iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
+		assert.NoError(t, err)
+		assert.NotNil(t, iid)
+		microServiceInstance.Properties = map[string]string{
+			"project": "x"}
+		ok, err := registryClient.UpdateMicroServiceInstanceProperties(microServiceInstance.ServiceId,
+			iid, microServiceInstance)
+		assert.True(t, ok)
+		assert.NoError(t, err)
+		instances, err := registryClient.FindMicroServiceInstances(microServiceInstance.ServiceId,
+			"default",
+			"scUTServer", "0.0.1")
+		assert.NoError(t, err)
+		assert.Equal(t, "x", instances[0].Properties["project"])
+	})
 
 	t.Log("find again, should get ErrNotModified")
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
-	assert.Equal(t, client.ErrNotModified, err)
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1")
+	assert.Equal(t, sc.ErrNotModified, err)
 
 	t.Log("find again without revision, should get nil error")
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1", client.WithoutRevision())
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1",
+		sc.WithoutRevision())
 	assert.NoError(t, err)
 
 	t.Log("register new and find")
-	microServiceInstance2 := &proto.MicroServiceInstance{
+	microServiceInstance2 := &discovery.MicroServiceInstance{
 		ServiceId: sid,
 		Endpoints: []string{"rest://127.0.0.1:3001"},
 		HostName:  hostname + "1",
-		Status:    client.MSInstanceUP,
+		Status:    sc.MSInstanceUP,
 	}
-	iid, err = registryClient.RegisterMicroServiceInstance(microServiceInstance2)
+	_, err = registryClient.RegisterMicroServiceInstance(microServiceInstance2)
 	time.Sleep(3 * time.Second)
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1")
 	assert.NoError(t, err)
 
 	t.Log("after reset")
 	registryClient.ResetRevision()
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1")
 	assert.NoError(t, err)
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "Server", "0.0.1")
-	assert.Equal(t, client.ErrNotModified, err)
+	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1")
+	assert.Equal(t, sc.ErrNotModified, err)
 
 	_, err = registryClient.FindMicroServiceInstances(sid, "AppIdNotExists", "ServerNotExists", "0.0.1")
-	assert.Equal(t, client.ErrMicroServiceNotExists, err)
+	assert.Equal(t, sc.ErrMicroServiceNotExists, err)
 
-	f := &proto.FindService{
-		Service: &proto.MicroServiceKey{
-			ServiceName: "Server",
+	f := &discovery.FindService{
+		Service: &discovery.MicroServiceKey{
+			ServiceName: "scUTServer",
 			AppId:       "default",
 			Version:     "0.0.1",
 		},
 	}
-	fs := []*proto.FindService{f}
+	fs := []*discovery.FindService{f}
 	instances, err := registryClient.BatchFindInstances(sid, fs)
 	t.Log(instances)
 	assert.NoError(t, err)
 
-	f1 := &proto.FindService{
-		Service: &proto.MicroServiceKey{
+	f1 := &discovery.FindService{
+		Service: &discovery.MicroServiceKey{
 			ServiceName: "empty",
 			AppId:       "default",
 			Version:     "0.0.1",
 		},
 	}
-	fs = []*proto.FindService{f1}
+	fs = []*discovery.FindService{f1}
 	instances, err = registryClient.BatchFindInstances(sid, fs)
 	t.Log(instances)
 	assert.NoError(t, err)
 
-	f2 := &proto.FindService{
-		Service: &proto.MicroServiceKey{
+	f2 := &discovery.FindService{
+		Service: &discovery.MicroServiceKey{
 			ServiceName: "empty",
 			AppId:       "default",
 			Version:     "latest",
 		},
 	}
-	fs = []*proto.FindService{f}
+	fs = []*discovery.FindService{f}
 	instances, err = registryClient.BatchFindInstances(sid, fs)
 	t.Log(instances)
 	assert.NoError(t, err)
 
-	fs = []*proto.FindService{f2, f}
+	fs = []*discovery.FindService{f2, f}
 	instances, err = registryClient.BatchFindInstances(sid, fs)
 	t.Log(instances)
 	assert.NoError(t, err)
 
-	fs = []*proto.FindService{}
+	fs = []*discovery.FindService{}
 	instances, err = registryClient.BatchFindInstances(sid, fs)
-	assert.Equal(t, client.ErrEmptyCriteria, err)
-}
-func TestRegistryClient_GetDefaultHeaders(t *testing.T) {
-	registryClient := &client.RegistryClient{}
-
-	err := registryClient.Initialize(
-		client.Options{
-			Addrs:        []string{"127.0.0.1:30100"},
-			ConfigTenant: "go-sc-tenant",
-		})
-	assert.Nil(t, err)
-
-	header := registryClient.GetDefaultHeaders()
-	tenant := header.Get(client.TenantHeader)
-	assert.Equal(t, tenant, "go-sc-tenant")
+	assert.Equal(t, sc.ErrEmptyCriteria, err)
 }

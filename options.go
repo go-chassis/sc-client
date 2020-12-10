@@ -7,9 +7,9 @@ import (
 	"context"
 )
 
-// Options is the list of dynamic parameter's which can be passed to the RegistryClient while creating a new client
+// Options is the list of dynamic parameter's which can be passed to the Client while creating a new client
 type Options struct {
-	Addrs     []string
+	Endpoints []string
 	EnableSSL bool
 	Timeout   time.Duration
 	TLSConfig *tls.Config

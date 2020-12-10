@@ -62,8 +62,8 @@ var (
 	ErrEmptyCriteria = errors.New("batch find criteria is empty")
 )
 
-// RegistryClient is a structure for the client to communicate to Service-Center
-type RegistryClient struct {
+// Client communicate to Service-Center
+type Client struct {
 	Config     *RegistryConfig
 	client     *httpclient.Requests
 	protocol   string
@@ -85,13 +85,13 @@ type RegistryConfig struct {
 type URLParameter map[string]string
 
 //ResetRevision reset the revision to 0
-func (c *RegistryClient) ResetRevision() {
+func (c *Client) ResetRevision() {
 	c.revision = "0"
 }
 
 // NewClient initializes the Registry Client
-func NewClient(opt Options) (*RegistryClient, error) {
-	c := &RegistryClient{}
+func NewClient(opt Options) (*Client, error) {
+	c := &Client{}
 	c.revision = "0"
 	c.Config = &RegistryConfig{
 		SSL: opt.EnableSSL,
@@ -130,12 +130,12 @@ func NewClient(opt Options) (*RegistryClient, error) {
 	//Update the API Base Path based on the Version
 	c.updateAPIPath()
 	c.pool = GetInstance()
-	c.pool.SetAddress(opt.Addrs)
+	c.pool.SetAddress(opt.Endpoints)
 	return c, nil
 }
 
 // updateAPIPath Updates the Base PATH anf HEADERS Based on the version of SC used.
-func (c *RegistryClient) updateAPIPath() {
+func (c *Client) updateAPIPath() {
 	//Check for the env Name in Container to get Domain Name
 	//Default value is  "default"
 	projectID, isExist := os.LookupEnv(EnvProjectID)
@@ -157,7 +157,7 @@ func (c *RegistryClient) updateAPIPath() {
 // SyncEndpoints gets the endpoints of service-center in the cluster
 //you only need to call this function,
 //if your service center is not behind a load balancing service like ELB,nginx etc
-func (c *RegistryClient) SyncEndpoints() error {
+func (c *Client) SyncEndpoints() error {
 	c.pool.Monitor()
 	instances, err := c.Health()
 	if err != nil {
@@ -176,7 +176,7 @@ func (c *RegistryClient) SyncEndpoints() error {
 	return fmt.Errorf("sync endpoints failed")
 }
 
-func (c *RegistryClient) formatURL(api string, querys []URLParameter, options *CallOptions) string {
+func (c *Client) formatURL(api string, querys []URLParameter, options *CallOptions) string {
 	builder := URLBuilder{
 		Protocol:      c.protocol,
 		Host:          c.getAddress(),
@@ -188,7 +188,7 @@ func (c *RegistryClient) formatURL(api string, querys []URLParameter, options *C
 }
 
 // GetDefaultHeaders gets the default headers for each request to be made to Service-Center
-func (c *RegistryClient) GetDefaultHeaders() http.Header {
+func (c *Client) GetDefaultHeaders() http.Header {
 
 	headers := http.Header{
 		HeaderContentType: []string{"application/json"},
@@ -200,7 +200,7 @@ func (c *RegistryClient) GetDefaultHeaders() http.Header {
 }
 
 // httpDo makes the http request to Service-center with proper header, body and method
-func (c *RegistryClient) httpDo(method string, rawURL string, headers http.Header, body []byte) (resp *http.Response, err error) {
+func (c *Client) httpDo(method string, rawURL string, headers http.Header, body []byte) (resp *http.Response, err error) {
 	if len(headers) == 0 {
 		headers = make(http.Header)
 	}
@@ -211,7 +211,7 @@ func (c *RegistryClient) httpDo(method string, rawURL string, headers http.Heade
 }
 
 // RegisterService registers the micro-services to Service-Center
-func (c *RegistryClient) RegisterService(microService *discovery.MicroService) (string, error) {
+func (c *Client) RegisterService(microService *discovery.MicroService) (string, error) {
 	if microService == nil {
 		return "", errors.New("invalid request MicroService parameter")
 	}
@@ -253,7 +253,7 @@ func (c *RegistryClient) RegisterService(microService *discovery.MicroService) (
 }
 
 // GetProviders gets a list of provider for a particular consumer
-func (c *RegistryClient) GetProviders(consumer string, opts ...CallOption) (*MicroServiceProvideResponse, error) {
+func (c *Client) GetProviders(consumer string, opts ...CallOption) (*MicroServiceProvideResponse, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -284,7 +284,7 @@ func (c *RegistryClient) GetProviders(consumer string, opts ...CallOption) (*Mic
 }
 
 // AddSchemas adds a schema contents to the services registered in service-center
-func (c *RegistryClient) AddSchemas(microServiceID, schemaName, schemaInfo string) error {
+func (c *Client) AddSchemas(microServiceID, schemaName, schemaInfo string) error {
 	if microServiceID == "" {
 		return errors.New("invalid micro service ID")
 	}
@@ -324,7 +324,7 @@ func (c *RegistryClient) AddSchemas(microServiceID, schemaName, schemaInfo strin
 }
 
 // GetSchema gets Schema list for the microservice from service-center
-func (c *RegistryClient) GetSchema(microServiceID, schemaName string, opts ...CallOption) ([]byte, error) {
+func (c *Client) GetSchema(microServiceID, schemaName string, opts ...CallOption) ([]byte, error) {
 	if microServiceID == "" {
 		return []byte(""), errors.New("invalid micro service ID")
 	}
@@ -353,7 +353,7 @@ func (c *RegistryClient) GetSchema(microServiceID, schemaName string, opts ...Ca
 }
 
 // GetMicroServiceID gets the microserviceid by appID, serviceName and version
-func (c *RegistryClient) GetMicroServiceID(appID, microServiceName, version, env string, opts ...CallOption) (string, error) {
+func (c *Client) GetMicroServiceID(appID, microServiceName, version, env string, opts ...CallOption) (string, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -390,7 +390,7 @@ func (c *RegistryClient) GetMicroServiceID(appID, microServiceName, version, env
 }
 
 // GetAllMicroServices gets list of all the microservices registered with Service-Center
-func (c *RegistryClient) GetAllMicroServices(opts ...CallOption) ([]*discovery.MicroService, error) {
+func (c *Client) GetAllMicroServices(opts ...CallOption) ([]*discovery.MicroService, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -420,7 +420,7 @@ func (c *RegistryClient) GetAllMicroServices(opts ...CallOption) ([]*discovery.M
 }
 
 // GetAllApplications returns the list of all the applications which is registered in governance-center
-func (c *RegistryClient) GetAllApplications(opts ...CallOption) ([]string, error) {
+func (c *Client) GetAllApplications(opts ...CallOption) ([]string, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -450,7 +450,7 @@ func (c *RegistryClient) GetAllApplications(opts ...CallOption) ([]string, error
 }
 
 // GetMicroService returns the microservices by ID
-func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOption) (*discovery.MicroService, error) {
+func (c *Client) GetMicroService(microServiceID string, opts ...CallOption) (*discovery.MicroService, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -481,7 +481,7 @@ func (c *RegistryClient) GetMicroService(microServiceID string, opts ...CallOpti
 
 //BatchFindInstances fetch instances based on service name, env, app and version
 //finally it return instances grouped by service name
-func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*discovery.FindService, opts ...CallOption) (*discovery.BatchFindInstancesResponse, error) {
+func (c *Client) BatchFindInstances(consumerID string, keys []*discovery.FindService, opts ...CallOption) (*discovery.BatchFindInstancesResponse, error) {
 	copts := &CallOptions{Revision: c.revision}
 	for _, opt := range opts {
 		opt(copts)
@@ -521,7 +521,7 @@ func (c *RegistryClient) BatchFindInstances(consumerID string, keys []*discovery
 }
 
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule
-func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServiceName,
+func (c *Client) FindMicroServiceInstances(consumerID, appID, microServiceName,
 	versionRule string, opts ...CallOption) ([]*discovery.MicroServiceInstance, error) {
 	copts := &CallOptions{Revision: c.revision}
 	for _, opt := range opts {
@@ -572,7 +572,7 @@ func (c *RegistryClient) FindMicroServiceInstances(consumerID, appID, microServi
 }
 
 // RegisterMicroServiceInstance registers the microservice instance to Servive-Center
-func (c *RegistryClient) RegisterMicroServiceInstance(microServiceInstance *discovery.MicroServiceInstance) (string, error) {
+func (c *Client) RegisterMicroServiceInstance(microServiceInstance *discovery.MicroServiceInstance) (string, error) {
 	if microServiceInstance == nil {
 		return "", errors.New("invalid request parameter")
 	}
@@ -608,7 +608,7 @@ func (c *RegistryClient) RegisterMicroServiceInstance(microServiceInstance *disc
 }
 
 // GetMicroServiceInstances queries the service-center with provider and consumer ID and returns the microservice-instance
-func (c *RegistryClient) GetMicroServiceInstances(consumerID, providerID string, opts ...CallOption) ([]*discovery.MicroServiceInstance, error) {
+func (c *Client) GetMicroServiceInstances(consumerID, providerID string, opts ...CallOption) ([]*discovery.MicroServiceInstance, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -641,7 +641,7 @@ func (c *RegistryClient) GetMicroServiceInstances(consumerID, providerID string,
 }
 
 // GetAllResources retruns all the list of services, instances, providers, consumers in the service-center
-func (c *RegistryClient) GetAllResources(resource string, opts ...CallOption) ([]*discovery.ServiceDetail, error) {
+func (c *Client) GetAllResources(resource string, opts ...CallOption) ([]*discovery.ServiceDetail, error) {
 	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
@@ -673,7 +673,7 @@ func (c *RegistryClient) GetAllResources(resource string, opts ...CallOption) ([
 }
 
 // Health returns the list of all the endpoints of SC with their status
-func (c *RegistryClient) Health() ([]*discovery.MicroServiceInstance, error) {
+func (c *Client) Health() ([]*discovery.MicroServiceInstance, error) {
 	url := ""
 	if c.apiVersion == "v4" {
 		url = c.formatURL(MSAPIPath+"/health", nil, nil)
@@ -706,7 +706,7 @@ func (c *RegistryClient) Health() ([]*discovery.MicroServiceInstance, error) {
 }
 
 // Heartbeat sends the heartbeat to service-senter for particular service-instance
-func (c *RegistryClient) Heartbeat(microServiceID, microServiceInstanceID string) (bool, error) {
+func (c *Client) Heartbeat(microServiceID, microServiceInstanceID string) (bool, error) {
 	url := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID,
 		InstancePath, microServiceInstanceID, HeartbeatPath), nil, nil)
 	resp, err := c.httpDo("PUT", url, nil, nil)
@@ -727,7 +727,7 @@ func (c *RegistryClient) Heartbeat(microServiceID, microServiceInstanceID string
 }
 
 // UnregisterMicroServiceInstance un-registers the microservice instance from the service-center
-func (c *RegistryClient) UnregisterMicroServiceInstance(microServiceID, microServiceInstanceID string) (bool, error) {
+func (c *Client) UnregisterMicroServiceInstance(microServiceID, microServiceInstanceID string) (bool, error) {
 	url := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s", MSAPIPath, MicroservicePath, microServiceID,
 		InstancePath, microServiceInstanceID), nil, nil)
 	resp, err := c.httpDo("DELETE", url, nil, nil)
@@ -748,7 +748,7 @@ func (c *RegistryClient) UnregisterMicroServiceInstance(microServiceID, microSer
 }
 
 // UnregisterMicroService un-registers the microservice from the service-center
-func (c *RegistryClient) UnregisterMicroService(microServiceID string) (bool, error) {
+func (c *Client) UnregisterMicroService(microServiceID string) (bool, error) {
 	url := c.formatURL(fmt.Sprintf("%s%s/%s", MSAPIPath, MicroservicePath, microServiceID), []URLParameter{
 		{"force": "1"},
 	}, nil)
@@ -770,7 +770,7 @@ func (c *RegistryClient) UnregisterMicroService(microServiceID string) (bool, er
 }
 
 // UpdateMicroServiceInstanceStatus updates the microservicve instance status in service-center
-func (c *RegistryClient) UpdateMicroServiceInstanceStatus(microServiceID, microServiceInstanceID, status string) (bool, error) {
+func (c *Client) UpdateMicroServiceInstanceStatus(microServiceID, microServiceInstanceID, status string) (bool, error) {
 	url := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID,
 		InstancePath, microServiceInstanceID, StatusPath), []URLParameter{
 		{"value": status},
@@ -794,7 +794,7 @@ func (c *RegistryClient) UpdateMicroServiceInstanceStatus(microServiceID, microS
 }
 
 // UpdateMicroServiceInstanceProperties updates the microserviceinstance  prooperties in the service-center
-func (c *RegistryClient) UpdateMicroServiceInstanceProperties(microServiceID, microServiceInstanceID string,
+func (c *Client) UpdateMicroServiceInstanceProperties(microServiceID, microServiceInstanceID string,
 	microServiceInstance *discovery.MicroServiceInstance) (bool, error) {
 	if microServiceInstance.Properties == nil {
 		return false, errors.New("invalid request parameter")
@@ -828,7 +828,7 @@ func (c *RegistryClient) UpdateMicroServiceInstanceProperties(microServiceID, mi
 }
 
 // UpdateMicroServiceProperties updates the microservice properties in the servive-center
-func (c *RegistryClient) UpdateMicroServiceProperties(microServiceID string, microService *discovery.MicroService) (bool, error) {
+func (c *Client) UpdateMicroServiceProperties(microServiceID string, microService *discovery.MicroService) (bool, error) {
 	if microService.Properties == nil {
 		return false, errors.New("invalid request parameter")
 	}
@@ -860,7 +860,7 @@ func (c *RegistryClient) UpdateMicroServiceProperties(microServiceID string, mic
 }
 
 // Close closes the connection with Service-Center
-func (c *RegistryClient) Close() error {
+func (c *Client) Close() error {
 	for k, v := range c.conns {
 		err := v.Close()
 		if err != nil {
@@ -872,7 +872,7 @@ func (c *RegistryClient) Close() error {
 }
 
 // WatchMicroService creates a web socket connection to service-center to keep a watch on the providers for a micro-service
-func (c *RegistryClient) WatchMicroService(microServiceID string, callback func(*MicroServiceInstanceChangedEvent)) error {
+func (c *Client) WatchMicroService(microServiceID string, callback func(*MicroServiceInstanceChangedEvent)) error {
 	if ready, ok := c.watchers[microServiceID]; !ok || !ready {
 		c.mutex.Lock()
 		if ready, ok := c.watchers[microServiceID]; !ok || !ready {
@@ -923,11 +923,11 @@ func (c *RegistryClient) WatchMicroService(microServiceID string, callback func(
 	return nil
 }
 
-func (c *RegistryClient) getAddress() string {
+func (c *Client) getAddress() string {
 	return c.pool.GetAvailableAddress()
 }
 
-func (c *RegistryClient) startBackOff(microServiceID string, callback func(*MicroServiceInstanceChangedEvent)) {
+func (c *Client) startBackOff(microServiceID string, callback func(*MicroServiceInstanceChangedEvent)) {
 	boff := &backoff.ExponentialBackOff{
 		InitialInterval:     1000 * time.Millisecond,
 		RandomizationFactor: backoff.DefaultRandomizationFactor,

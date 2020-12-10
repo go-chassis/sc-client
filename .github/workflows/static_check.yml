@@ -17,5 +17,4 @@ jobs:
     - name: UT
       run: |
         bash scripts/ci/start_latest_sc.sh
-        go get github.com/stretchr/testify
-        bash scripts/ci/unit_test.sh
+        go test ./...

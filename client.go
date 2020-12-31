@@ -16,6 +16,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/go-chassis/cari/discovery"
+	"github.com/go-chassis/cari/rbac"
 	"github.com/go-chassis/foundation/httpclient"
 	"github.com/go-chassis/foundation/httputil"
 	"github.com/go-chassis/openlog"
@@ -34,8 +35,12 @@ const (
 	StatusPath          = "/status"
 	DependencyPath      = "/dependencies"
 	PropertiesPath      = "/properties"
+	AccountPath         = "/v4/account"
+	RolePath            = "/v4/role"
+	TokenPath           = "/v4/token"
 	HeaderContentType   = "Content-Type"
 	HeaderUserAgent     = "User-Agent"
+	HeaderAuth          = "Authorization"
 	DefaultAddr         = "127.0.0.1:30100"
 	AppsPath            = "/apps"
 	DefaultRetryTimeout = 500 * time.Millisecond
@@ -100,6 +105,21 @@ func NewClient(opt Options) (*Client, error) {
 	options := &httpclient.Options{
 		TLSConfig:  opt.TLSConfig,
 		Compressed: opt.Compressed,
+	}
+	if opt.EnableRBAC {
+		options = &httpclient.Options{
+			SignRequest: func(req *http.Request) error {
+				if req.URL.Path == TokenPath {
+					return nil
+				}
+				token, err := c.GetToken(opt.AuthUser)
+				if err != nil {
+					return err
+				}
+				req.Header.Set(HeaderAuth, "Bearer "+token)
+				return nil
+			},
+		}
 	}
 	c.watchers = make(map[string]bool)
 	c.conns = make(map[string]*websocket.Conn)
@@ -952,4 +972,274 @@ func (c *Client) startBackOff(microServiceID string, callback func(*MicroService
 	if err == nil {
 		return
 	}
+}
+
+// RegisterAccount register the account from the service-center
+func (c *Client) RegisterAccount(account *rbac.Account) error {
+	if account == nil {
+		return errors.New("invalid request account parameter")
+	}
+	body, err := json.Marshal(account)
+	if err != nil {
+		return NewJSONException(err, "parse the account info failed")
+	}
+	registerURL := c.formatURL(AccountPath, nil, nil)
+	resp, err := c.httpDo(http.MethodPost, registerURL, nil, body)
+	if err != nil {
+		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("RegisterAccount failed, response is empty, AccountName: %s", account.Name)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return NewIOException(err)
+		}
+		return NewCommonException("result: %d %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+// GetAccount return all user account info from the service-center
+func (c *Client) GetAccount(accountName string) (*rbac.Account, error) {
+	url := c.formatURL(fmt.Sprintf("%s/%s", AccountPath, accountName), nil, nil)
+	resp, err := c.httpDo(http.MethodGet, url, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("GetAllAccounts failed, response is empty")
+	}
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, NewIOException(err)
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		var response rbac.Account
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			return nil, NewJSONException(err, "parse the account info failed")
+		}
+		return &response, nil
+	}
+	return nil, fmt.Errorf("GetAllAccounts failed, response StatusCode: %d, response body: %s", resp.StatusCode, string(body))
+}
+
+// GetAllUserAccounts return all user account info from the service-center
+func (c *Client) GetAllUserAccounts(opts ...CallOption) ([]*rbac.Account, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	url := c.formatURL(AccountPath, nil, copts)
+	resp, err := c.httpDo(http.MethodGet, url, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("GetAllAccounts failed, response is empty")
+	}
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, NewIOException(err)
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		var response rbac.AccountResponse
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			return nil, NewJSONException(err, "parse the account info failed")
+		}
+		return response.Accounts, nil
+	}
+	return nil, fmt.Errorf("GetAllAccounts failed, response StatusCode: %d, response body: %s", resp.StatusCode, string(body))
+}
+
+// UnregisterAccount un-register the account info from the service-center
+func (c *Client) UnregisterAccount(userName string) (bool, error) {
+	url := c.formatURL(fmt.Sprintf("%s/%s", AccountPath, userName), nil, nil)
+	resp, err := c.httpDo(http.MethodDelete, url, nil, nil)
+	if err != nil {
+		return false, err
+	}
+	if resp == nil {
+		return false, fmt.Errorf("UnregisterAccount failed, response is empty, userID: %s", userName)
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		_, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return false, NewIOException(err)
+		}
+		return true, nil
+	}
+	return false, NewCommonException("UnregisterAccount failed, result: %d", resp.StatusCode)
+}
+
+// RegisterRole register the role from the service-center
+func (c *Client) RegisterRole(role *rbac.Role) error {
+	if role == nil {
+		return errors.New("invalid request role parameter")
+	}
+	body, err := json.Marshal(role)
+	if err != nil {
+		return NewJSONException(err, string(body))
+	}
+
+	registerURL := c.formatURL(RolePath, nil, nil)
+	resp, err := c.httpDo(http.MethodPost, registerURL, nil, body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return NewIOException(err)
+		}
+		return NewCommonException("result: %d %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+// GetRole return the role info from the service-center
+func (c *Client) GetRole(roleName string) (*rbac.Role, error) {
+	url := c.formatURL(fmt.Sprintf("%s/%s", RolePath, roleName), nil, nil)
+	resp, err := c.httpDo(http.MethodGet, url, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("GetAllAccounts failed, response is empty")
+	}
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, NewIOException(err)
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		var response rbac.Role
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			return nil, NewJSONException(err, string(body))
+		}
+		return &response, nil
+	}
+	return nil, fmt.Errorf("GetRole failed, response StatusCode: %d, response body: %s", resp.StatusCode, string(body))
+}
+
+// GetAllRoles return the all role info from the service-center
+func (c *Client) GetAllRoles(opts ...CallOption) ([]*rbac.Role, error) {
+	copts := &CallOptions{}
+	for _, opt := range opts {
+		opt(copts)
+	}
+	url := c.formatURL(RolePath, nil, copts)
+	resp, err := c.httpDo(http.MethodGet, url, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("GetAllAccounts failed, response is empty")
+	}
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, NewIOException(err)
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		var response rbac.RoleResponse
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			return nil, NewJSONException(err, string(body))
+		}
+		return response.Roles, nil
+	}
+	return nil, fmt.Errorf("GetRole failed, response StatusCode: %d, response body: %s", resp.StatusCode, string(body))
+}
+
+// UpdateRole update the role from the service-center
+func (c *Client) UpdateRole(role *rbac.Role) error {
+	if role == nil {
+		return errors.New("invalid request role parameter")
+	}
+
+	body, err := json.Marshal(role)
+	if err != nil {
+		return NewJSONException(err, string(body))
+	}
+
+	registerURL := c.formatURL(fmt.Sprintf("%s/%s", RolePath, role.Name), nil, nil)
+	resp, err := c.httpDo(http.MethodPut, registerURL, nil, body)
+	if err != nil {
+		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("UpdateRole: %s failed, response is empty", role.Name)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return NewIOException(err)
+		}
+		return NewCommonException("result: %d %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+// UnregisterRole un-register the role from the service-center
+func (c *Client) UnregisterRole(roleName string) (bool, error) {
+	url := c.formatURL(fmt.Sprintf("%s/%s", RolePath, roleName), nil, nil)
+	resp, err := c.httpDo(http.MethodDelete, url, nil, nil)
+	if err != nil {
+		return false, err
+	}
+	if resp == nil {
+		return false, fmt.Errorf("UnregisterRole: %s failed, response is empty", roleName)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return false, NewIOException(err)
+		}
+		return false, NewCommonException("result: %d %s", resp.StatusCode, string(body))
+	}
+
+	return true, nil
+}
+
+// GetToken generate token according to user-password
+func (c *Client) GetToken(a *rbac.AuthUser) (string, error) {
+	request := rbac.Account{
+		Name:     a.Username,
+		Password: a.Password,
+	}
+	body, err := json.Marshal(request)
+	if err != nil {
+		return "", NewJSONException(err, "parse the username or password failed")
+	}
+
+	tokenUrl := c.formatURL(TokenPath, nil, nil)
+	resp, err := c.httpDo(http.MethodPost, tokenUrl, nil, body)
+	if err != nil {
+		return "", err
+	}
+	if resp == nil {
+		return "", fmt.Errorf("user %s generate token failder: ", a.Username)
+	}
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", NewIOException(err)
+	}
+
+	if resp.StatusCode == http.StatusOK {
+		var response rbac.Token
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			return "", NewJSONException(err, string(body))
+		}
+		return response.TokenStr, nil
+	}
+	return "", fmt.Errorf("user %s generate token failed, response StatusCode: %d", a.Username, resp.StatusCode)
 }

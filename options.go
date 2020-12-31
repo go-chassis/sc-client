@@ -2,6 +2,8 @@ package sc
 
 import (
 	"crypto/tls"
+	"github.com/go-chassis/cari/rbac"
+
 	"time"
 
 	"context"
@@ -18,6 +20,8 @@ type Options struct {
 	Compressed bool
 	Verbose    bool
 	Version    string
+	EnableRBAC bool
+	AuthUser   *rbac.AuthUser
 }
 
 //CallOptions is options when you call a API

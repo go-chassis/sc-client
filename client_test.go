@@ -23,9 +23,6 @@ func TestNewClient(t *testing.T) {
 		})
 	assert.NoError(t, err)
 
-	err = c.SyncEndpoints()
-	assert.NoError(t, err)
-
 	httpHeader := c.GetDefaultHeaders()
 	assert.NotEmpty(t, httpHeader)
 

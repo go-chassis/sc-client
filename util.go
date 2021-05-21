@@ -1,8 +1,9 @@
 package sc
 
 import (
-	"github.com/go-chassis/openlog"
 	"net/url"
+
+	"github.com/go-chassis/openlog"
 )
 
 func getProtocolMap(eps []string) map[string]string {

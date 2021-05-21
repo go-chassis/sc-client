@@ -60,25 +60,20 @@ var (
 	ErrMicroServiceNotExists = errors.New("micro-service does not exist")
 	//ErrEmptyCriteria means you gave an empty list of criteria
 	ErrEmptyCriteria = errors.New("batch find criteria is empty")
+	ErrNil           = errors.New("input is nil")
 )
 
 // Client communicate to Service-Center
 type Client struct {
-	Config     *RegistryConfig
-	client     *httpclient.Requests
-	protocol   string
-	watchers   map[string]bool
-	mutex      sync.Mutex
-	wsDialer   *websocket.Dialer
-	conns      map[string]*websocket.Conn
-	apiVersion string
-	revision   string
-	pool       *AddressPool
-}
-
-// RegistryConfig is a structure to store registry configurations like address of cc, ssl configurations and tenant name
-type RegistryConfig struct {
-	SSL bool
+	opt      Options
+	client   *httpclient.Requests
+	protocol string
+	watchers map[string]bool
+	mutex    sync.Mutex
+	wsDialer *websocket.Dialer
+	conns    map[string]*websocket.Conn
+	revision string
+	pool     *AddressPool
 }
 
 // URLParameter maintains the list of parameters to be added in URL
@@ -89,74 +84,50 @@ func (c *Client) ResetRevision() {
 	c.revision = "0"
 }
 
-// NewClient initializes the Registry Client
+// NewClient create a the service center client
 func NewClient(opt Options) (*Client, error) {
-	c := &Client{}
-	c.revision = "0"
-	c.Config = &RegistryConfig{
-		SSL: opt.EnableSSL,
+	c := &Client{
+		opt:      opt,
+		revision: "0",
+		watchers: make(map[string]bool),
+		conns:    make(map[string]*websocket.Conn),
+		pool:     NewPool(),
 	}
-
 	options := &httpclient.Options{
 		TLSConfig:  opt.TLSConfig,
 		Compressed: opt.Compressed,
-	}
-	c.watchers = make(map[string]bool)
-	c.conns = make(map[string]*websocket.Conn)
-	c.protocol = "https"
-	c.wsDialer = &websocket.Dialer{
-		TLSClientConfig: opt.TLSConfig,
-	}
-	if !c.Config.SSL {
-		c.wsDialer = websocket.DefaultDialer
-		c.protocol = "http"
 	}
 	var err error
 	c.client, err = httpclient.New(options)
 	if err != nil {
 		return nil, err
 	}
-
-	//Set the API Version based on the value set in chassis.yaml servicecomb.discovery.api.version
-	//Default Value Set to V4
-	opt.Version = strings.ToLower(opt.Version)
-	switch opt.Version {
-	case "v3":
-		c.apiVersion = "v3"
-		TenantHeader = "X-Tenant-Name"
-	default:
-		c.apiVersion = "v4"
+	c.wsDialer = &websocket.Dialer{
+		TLSClientConfig: opt.TLSConfig,
 	}
-	//Update the API Base Path based on the Version
+	c.protocol = "https"
+	if !c.opt.EnableSSL {
+		c.wsDialer = websocket.DefaultDialer
+		c.protocol = "http"
+	}
+	//Update the API Base Path based on the project
 	c.updateAPIPath()
-	c.pool = GetInstance()
 	c.pool.SetAddress(opt.Endpoints)
 	return c, nil
 }
 
-// updateAPIPath Updates the Base PATH anf HEADERS Based on the version of SC used.
 func (c *Client) updateAPIPath() {
-	//Check for the env Name in Container to get Domain Name
-	//Default value is  "default"
 	projectID, isExist := os.LookupEnv(EnvProjectID)
 	if !isExist {
 		projectID = "default"
 	}
-	switch c.apiVersion {
-	case "v3":
-		MSAPIPath = APIPath
-		GovernAPIPATH = APIPath
-		openlog.Info("Use Service center v3")
-	default:
-		MSAPIPath = "/v4/" + projectID + "/registry"
-		GovernAPIPATH = "/v4/" + projectID + "/govern"
-		openlog.Info("Use Service center v4")
-	}
+	MSAPIPath = "/v4/" + projectID + "/registry"
+	GovernAPIPATH = "/v4/" + projectID + "/govern"
 }
 
 // SyncEndpoints gets the endpoints of service-center in the cluster
-//you only need to call this function,
-//if your service center is not behind a load balancing service like ELB,nginx etc
+// if your service center cluster is not behind a load balancing service like ELB,nginx etc
+// then you can use this function
 func (c *Client) SyncEndpoints() error {
 	c.pool.Monitor()
 	instances, err := c.Health()
@@ -189,7 +160,6 @@ func (c *Client) formatURL(api string, querys []URLParameter, options *CallOptio
 
 // GetDefaultHeaders gets the default headers for each request to be made to Service-Center
 func (c *Client) GetDefaultHeaders() http.Header {
-
 	headers := http.Header{
 		HeaderContentType: []string{"application/json"},
 		HeaderUserAgent:   []string{"go-client"},
@@ -213,7 +183,7 @@ func (c *Client) httpDo(method string, rawURL string, headers http.Header, body 
 // RegisterService registers the micro-services to Service-Center
 func (c *Client) RegisterService(microService *discovery.MicroService) (string, error) {
 	if microService == nil {
-		return "", errors.New("invalid request MicroService parameter")
+		return "", ErrNil
 	}
 	request := discovery.CreateServiceRequest{
 		Service: microService,
@@ -248,7 +218,7 @@ func (c *Client) RegisterService(microService *discovery.MicroService) (string, 
 	if resp.StatusCode == 400 {
 		return "", fmt.Errorf("client seems to have erred, error: %s", body)
 	}
-	return "", fmt.Errorf("RegisterService failed, MicroServiceName/responseStatusCode/responsebody: %s/%d/%s",
+	return "", fmt.Errorf("register service failed, ServiceName/responseStatusCode/responsebody: %s/%d/%s",
 		microService.ServiceName, resp.StatusCode, string(body))
 }
 
@@ -674,13 +644,7 @@ func (c *Client) GetAllResources(resource string, opts ...CallOption) ([]*discov
 
 // Health returns the list of all the endpoints of SC with their status
 func (c *Client) Health() ([]*discovery.MicroServiceInstance, error) {
-	url := ""
-	if c.apiVersion == "v4" {
-		url = c.formatURL(MSAPIPath+"/health", nil, nil)
-	} else {
-		url = c.formatURL("/health", nil, nil)
-	}
-
+	url := c.formatURL(MSAPIPath+"/health", nil, nil)
 	resp, err := c.httpDo("GET", url, nil, nil)
 	if err != nil {
 		return nil, err
@@ -878,7 +842,7 @@ func (c *Client) WatchMicroService(microServiceID string, callback func(*MicroSe
 		if ready, ok := c.watchers[microServiceID]; !ok || !ready {
 			c.watchers[microServiceID] = true
 			scheme := "wss"
-			if !c.Config.SSL {
+			if !c.opt.EnableSSL {
 				scheme = "ws"
 			}
 			u := url.URL{

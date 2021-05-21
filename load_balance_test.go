@@ -1,9 +1,10 @@
 package sc_test
 
 import (
+	"testing"
+
 	"github.com/go-chassis/sc-client"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func BenchmarkRoundRobin(b *testing.B) {

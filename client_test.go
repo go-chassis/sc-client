@@ -100,7 +100,7 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	t.Run("query schema, should return info", func(t *testing.T) {
 		b, err := registryClient.GetSchema(ms.ServiceId, "schema")
 		assert.NoError(t, err)
-		assert.Equal(t, "{\"schema\":\"schema\"}\n", string(b))
+		assert.Equal(t, "{\"schema\":\"schema\"}", string(b))
 	})
 	t.Run("query schema with empty string, should be err", func(t *testing.T) {
 		_, err := registryClient.GetSchema("", "schema")
@@ -116,6 +116,29 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 		iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
 		assert.NoError(t, err)
 		assert.NotNil(t, iid)
+		ok, err := registryClient.UnregisterMicroServiceInstance(microServiceInstance.ServiceId, iid)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("send instance heartbeat (http), should success", func(t *testing.T) {
+		iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
+		assert.NoError(t, err)
+		assert.NotNil(t, iid)
+		receiveStatus, err := registryClient.Heartbeat(microServiceInstance.ServiceId, iid)
+		assert.Equal(t, true, receiveStatus)
+		assert.Nil(t, err)
+		ok, err := registryClient.UnregisterMicroServiceInstance(microServiceInstance.ServiceId, iid)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("send instance heartbeat (websocket), should success", func(t *testing.T) {
+		iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
+		assert.NoError(t, err)
+		assert.NotNil(t, iid)
+		err = registryClient.WSHeartbeat(microServiceInstance.ServiceId, iid)
+		assert.Nil(t, err)
 		ok, err := registryClient.UnregisterMicroServiceInstance(microServiceInstance.ServiceId, iid)
 		assert.NoError(t, err)
 		assert.True(t, ok)

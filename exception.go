@@ -7,16 +7,16 @@ import (
 // RegistryException structure contains message and error information for the exception caused by service-center
 type RegistryException struct {
 	Title   string
-	OrglErr error
+	Err     error
 	Message string
 }
 
 // Error gets the Error message from the Error
 func (e *RegistryException) Error() string {
-	if e.OrglErr == nil {
+	if e.Err == nil {
 		return fmt.Sprintf("%s(%s)", e.Title, e.Message)
 	}
-	return fmt.Sprintf("%s(%s), %s", e.Title, e.OrglErr.Error(), e.Message)
+	return fmt.Sprintf("%s(%s), %s", e.Title, e.Err.Error(), e.Message)
 }
 
 func formatMessage(args []interface{}) string {
@@ -33,7 +33,7 @@ func formatMessage(args []interface{}) string {
 func newException(t string, e error, message string) *RegistryException {
 	return &RegistryException{
 		Title:   t,
-		OrglErr: e,
+		Err:     e,
 		Message: message,
 	}
 }

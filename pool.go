@@ -25,8 +25,8 @@ type AddressPool struct {
 	mutex      sync.RWMutex
 }
 
-// GetInstance Get registry pool instance
-func GetInstance() *AddressPool {
+// NewPool Get registry pool instance
+func NewPool() *AddressPool {
 	onceInit.Do(func() {
 		instance = &AddressPool{
 			addressMap: make(map[string]string),

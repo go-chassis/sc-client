@@ -25,11 +25,6 @@ const (
 	CheckByHeartbeat string = "push"
 	//DefaultLeaseRenewalInterval is a constant of type int which declares default lease renewal time
 	DefaultLeaseRenewalInterval = 30
-	//APIPath is a constant of type string
-	APIPath = "/registry/v3"
-	//MSI_STARTING     string = "STARTING"
-	//MSI_OUTOFSERVICE string = "OUTOFSERVICE"
-	//CHECK_BY_PLATFORM             string = "pull"
 )
 
 // MicroServiceProvideResponse is a struct with provider information

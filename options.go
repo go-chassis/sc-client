@@ -17,7 +17,6 @@ type Options struct {
 	Context    context.Context
 	Compressed bool
 	Verbose    bool
-	Version    string
 }
 
 //CallOptions is options when you call a API

@@ -52,13 +52,13 @@ var (
 	TenantHeader  = "X-Domain-Name"
 )
 var (
-	//ErrNotModified means instance is not changed
+	// ErrNotModified means instance is not changed
 	ErrNotModified = errors.New("instance is not changed since last query")
-	//ErrMicroServiceExists means service is registered
+	// ErrMicroServiceExists means service is registered
 	ErrMicroServiceExists = errors.New("micro-service already exists")
 	// ErrMicroServiceNotExists means service is not exists
 	ErrMicroServiceNotExists = errors.New("micro-service does not exist")
-	//ErrEmptyCriteria means you gave an empty list of criteria
+	// ErrEmptyCriteria means you gave an empty list of criteria
 	ErrEmptyCriteria = errors.New("batch find criteria is empty")
 	ErrNil           = errors.New("input is nil")
 )
@@ -71,6 +71,7 @@ type Client struct {
 	watchers map[string]bool
 	mutex    sync.Mutex
 	wsDialer *websocket.Dialer
+	// record the websocket connection with the service center
 	conns    map[string]*websocket.Conn
 	revision string
 	pool     *AddressPool
@@ -669,7 +670,7 @@ func (c *Client) Health() ([]*discovery.MicroServiceInstance, error) {
 		resp.StatusCode, string(body))
 }
 
-// Heartbeat sends the heartbeat to service-senter for particular service-instance
+// Heartbeat sends the heartbeat to service-center for particular service-instance
 func (c *Client) Heartbeat(microServiceID, microServiceInstanceID string) (bool, error) {
 	url := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID,
 		InstancePath, microServiceInstanceID, HeartbeatPath), nil, nil)
@@ -688,6 +689,41 @@ func (c *Client) Heartbeat(microServiceID, microServiceInstanceID string) (bool,
 		return false, NewCommonException("result: %d %s", resp.StatusCode, string(body))
 	}
 	return true, nil
+}
+
+// WSHeartbeat creates a web socket connection to service-center to send heartbeat
+func (c *Client) WSHeartbeat(microServiceID, microServiceInstanceID string) error {
+	scheme := "wss"
+	if !c.opt.EnableSSL {
+		scheme = "ws"
+	}
+
+	u := url.URL{
+		Scheme: scheme,
+		Host:   c.getAddress(),
+		Path: fmt.Sprintf("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID,
+			InstancePath, microServiceInstanceID, "/heartbeat"),
+	}
+
+	conn, _, err := c.wsDialer.Dial(u.String(), c.GetDefaultHeaders())
+	if err != nil {
+		return fmt.Errorf("watching microservice dial catch an exception,microServiceID: %s, error:%s", microServiceID, err.Error())
+	}
+	c.conns[microServiceInstanceID] = conn
+	go func() {
+		for {
+			_, _, err = conn.ReadMessage()
+			if err != nil {
+				break
+			}
+		}
+		err = conn.Close()
+		if err != nil {
+			openlog.Error(err.Error())
+		}
+		delete(c.conns, microServiceInstanceID)
+	}()
+	return nil
 }
 
 // UnregisterMicroServiceInstance un-registers the microservice instance from the service-center

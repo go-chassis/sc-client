@@ -707,7 +707,8 @@ func (c *Client) WSHeartbeat(microServiceID, microServiceInstanceID string) erro
 
 	conn, _, err := c.wsDialer.Dial(u.String(), c.GetDefaultHeaders())
 	if err != nil {
-		return fmt.Errorf("watching microservice dial catch an exception,microServiceID: %s, error:%s", microServiceID, err.Error())
+		openlog.Error(fmt.Sprintf("watching microservice dial catch an exception,microServiceID: %s, error:%s", microServiceID, err.Error()))
+		return err
 	}
 	c.conns[microServiceInstanceID] = conn
 	go func() {

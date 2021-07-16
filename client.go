@@ -14,12 +14,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/gorilla/websocket"
+
 	"github.com/go-chassis/cari/discovery"
 	"github.com/go-chassis/foundation/httpclient"
 	"github.com/go-chassis/foundation/httputil"
 	"github.com/go-chassis/openlog"
-	"github.com/gorilla/websocket"
 )
 
 // Define constants for the client
@@ -691,8 +692,39 @@ func (c *Client) Heartbeat(microServiceID, microServiceInstanceID string) (bool,
 	return true, nil
 }
 
-// WSHeartbeat creates a web socket connection to service-center to send heartbeat
+// WSHeartbeat creates a web socket connection to service-center to send heartbeat.
+// It relies on the ping pong mechanism of websocket to ensure the heartbeat, which is maintained by goroutines.
+// After the connection is established, the communication fails and will be retried continuously. The retrial time increases exponentially.
 func (c *Client) WSHeartbeat(microServiceID, microServiceInstanceID string) error {
+	err := c.setupWSConnection(microServiceID, microServiceInstanceID)
+	if err != nil {
+		return err
+	}
+	go func() {
+		resetConn := func() error {
+			return c.setupWSConnection(microServiceID, microServiceInstanceID)
+		}
+		for {
+			conn := c.conns[microServiceInstanceID]
+			_, _, err = conn.ReadMessage()
+			if err != nil {
+				openlog.Error(err.Error())
+				conn.Close()
+				// reconnection
+				err = backoff.RetryNotify(
+					resetConn,
+					backoff.NewExponentialBackOff(),
+					func(err error, duration time.Duration) {
+						openlog.Error(fmt.Sprintf("failed err: %s,and it will be executed again in %v", err.Error(), duration))
+					})
+			}
+		}
+	}()
+	return nil
+}
+
+// setupWSConnection create websocket connection and assign it to the map of the connection
+func (c *Client) setupWSConnection(microServiceID, microServiceInstanceID string) error {
 	scheme := "wss"
 	if !c.opt.EnableSSL {
 		scheme = "ws"
@@ -711,19 +743,7 @@ func (c *Client) WSHeartbeat(microServiceID, microServiceInstanceID string) erro
 		return err
 	}
 	c.conns[microServiceInstanceID] = conn
-	go func() {
-		for {
-			_, _, err = conn.ReadMessage()
-			if err != nil {
-				break
-			}
-		}
-		err = conn.Close()
-		if err != nil {
-			openlog.Error(err.Error())
-		}
-		delete(c.conns, microServiceInstanceID)
-	}()
+	openlog.Info(fmt.Sprintf("%s's websocket connection established successfully",microServiceInstanceID))
 	return nil
 }
 

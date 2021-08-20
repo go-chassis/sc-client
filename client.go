@@ -695,7 +695,8 @@ func (c *Client) Heartbeat(microServiceID, microServiceInstanceID string) (bool,
 // WSHeartbeat creates a web socket connection to service-center to send heartbeat.
 // It relies on the ping pong mechanism of websocket to ensure the heartbeat, which is maintained by goroutines.
 // After the connection is established, the communication fails and will be retried continuously. The retrial time increases exponentially.
-func (c *Client) WSHeartbeat(microServiceID, microServiceInstanceID string) error {
+// The callback function is used to re-register the instance.
+func (c *Client) WSHeartbeat(microServiceID, microServiceInstanceID string, callback func()) error {
 	err := c.setupWSConnection(microServiceID, microServiceInstanceID)
 	if err != nil {
 		return err
@@ -709,7 +710,12 @@ func (c *Client) WSHeartbeat(microServiceID, microServiceInstanceID string) erro
 			_, _, err = conn.ReadMessage()
 			if err != nil {
 				openlog.Error(err.Error())
-				conn.Close()
+				err = conn.Close()
+				openlog.Error(fmt.Sprintf("failed to close websocket connection %s", err.Error()))
+				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+					// If the instance does not exist, it is closed normally and should be re-registered
+					callback()
+				}
 				// reconnection
 				err = backoff.RetryNotify(
 					resetConn,
@@ -743,7 +749,7 @@ func (c *Client) setupWSConnection(microServiceID, microServiceInstanceID string
 		return err
 	}
 	c.conns[microServiceInstanceID] = conn
-	openlog.Info(fmt.Sprintf("%s's websocket connection established successfully",microServiceInstanceID))
+	openlog.Info(fmt.Sprintf("%s's websocket connection established successfully", microServiceInstanceID))
 	return nil
 }
 

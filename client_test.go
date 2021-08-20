@@ -137,7 +137,11 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 		iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
 		assert.NoError(t, err)
 		assert.NotNil(t, iid)
-		err = registryClient.WSHeartbeat(microServiceInstance.ServiceId, iid)
+		microServiceInstance.InstanceId = iid
+		callback := func() {
+			registryClient.RegisterMicroServiceInstance(microServiceInstance)
+		}
+		err = registryClient.WSHeartbeat(microServiceInstance.ServiceId, iid, callback)
 		assert.Nil(t, err)
 		ok, err := registryClient.UnregisterMicroServiceInstance(microServiceInstance.ServiceId, iid)
 		assert.NoError(t, err)

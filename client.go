@@ -710,9 +710,9 @@ func (c *Client) WSHeartbeat(microServiceID, microServiceInstanceID string, call
 			_, _, err = conn.ReadMessage()
 			if err != nil {
 				openlog.Error(err.Error())
-				err = conn.Close()
-				if err != nil {
-					openlog.Error(fmt.Sprintf("failed to close websocket connection %s", err.Error()))
+				closeErr := conn.Close()
+				if closeErr != nil {
+					openlog.Error(fmt.Sprintf("failed to close websocket connection %s", closeErr.Error()))
 				}
 				if websocket.IsCloseError(err, discovery.ErrWebsocketInstanceNotExists) {
 					// If the instance does not exist, it is closed normally and should be re-registered

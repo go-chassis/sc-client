@@ -115,6 +115,7 @@ func NewClient(opt Options) (*Client, error) {
 	//Update the API Base Path based on the project
 	c.updateAPIPath()
 	c.pool.SetAddress(opt.Endpoints)
+	c.pool.Monitor()
 	return c, nil
 }
 
@@ -131,7 +132,6 @@ func (c *Client) updateAPIPath() {
 // if your service center cluster is not behind a load balancing service like ELB,nginx etc
 // then you can use this function
 func (c *Client) SyncEndpoints() error {
-	c.pool.Monitor()
 	instances, err := c.Health()
 	if err != nil {
 		return fmt.Errorf("sync SC ep failed. err:%s", err.Error())

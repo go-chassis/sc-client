@@ -93,7 +93,6 @@ func NewClient(opt Options) (*Client, error) {
 		revision: "0",
 		watchers: make(map[string]bool),
 		conns:    make(map[string]*websocket.Conn),
-		pool:     NewPool(),
 	}
 	options := &httpclient.Options{
 		TLSConfig:  opt.TLSConfig,
@@ -114,6 +113,7 @@ func NewClient(opt Options) (*Client, error) {
 	}
 	//Update the API Base Path based on the project
 	c.updateAPIPath()
+	c.pool = NewPool(c.protocol)
 	c.pool.SetAddress(opt.Endpoints)
 	c.pool.Monitor()
 	return c, nil

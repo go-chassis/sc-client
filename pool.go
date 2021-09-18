@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,15 +21,17 @@ const (
 
 // AddressPool registry address pool
 type AddressPool struct {
+	protocol   string
 	addressMap map[string]string
 	status     map[string]string
 	mutex      sync.RWMutex
 }
 
 // NewPool Get registry pool instance
-func NewPool() *AddressPool {
+func NewPool(protocol string) *AddressPool {
 	onceInit.Do(func() {
 		instance = &AddressPool{
+			protocol:   protocol,
 			addressMap: make(map[string]string),
 			status:     make(map[string]string),
 		}
@@ -71,6 +74,9 @@ func (p *AddressPool) checkConnectivity() {
 	defer p.mutex.Unlock()
 	timeOut := time.Duration(1) * time.Second
 	for _, v := range p.addressMap {
+		if len(strings.Split(v, ":")) < 2 && len(p.protocol) > 0 {
+			v = v + ":" + p.protocol
+		}
 		conn, err := net.DialTimeout("tcp", v, timeOut)
 		if err != nil {
 			p.status[v] = unavailable

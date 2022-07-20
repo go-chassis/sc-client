@@ -104,29 +104,7 @@ func NewClient(opt Options) (*Client, error) {
 		Compressed: opt.Compressed,
 	}
 	if opt.EnableAuth {
-		if opt.TokenExpiration == 0 {
-			opt.TokenExpiration = DefaultTokenExpiration
-		}
-		tokenCache := cache.New(opt.TokenExpiration, 1*time.Hour)
-		options = &httpclient.Options{
-			SignRequest: func(req *http.Request) error {
-				if req.URL.Path == TokenPath {
-					return nil
-				}
-				cachedToken, isFound := tokenCache.Get("token")
-				if isFound {
-					req.Header.Set(HeaderAuth, "Bearer "+cachedToken.(string))
-				} else {
-					token, err := c.GetToken(opt.AuthUser)
-					if err != nil {
-						return err
-					}
-					req.Header.Set(HeaderAuth, "Bearer "+token)
-					tokenCache.Set("token", token, cache.DefaultExpiration)
-				}
-				return nil
-			},
-		}
+		options = c.extractSignRequest(opt, options)
 	}
 	var err error
 	c.client, err = httpclient.New(options)
@@ -147,6 +125,35 @@ func NewClient(opt Options) (*Client, error) {
 	c.pool.SetAddress(opt.Endpoints)
 	c.pool.Monitor()
 	return c, nil
+}
+
+// extractSignRequest extract SignRequest option for client
+// when the authentication is enabled, the token of automatic renewal is added to the request header
+func (c *Client) extractSignRequest(opt Options, options *httpclient.Options) *httpclient.Options {
+	if opt.TokenExpiration == 0 {
+		opt.TokenExpiration = DefaultTokenExpiration
+	}
+	tokenCache := cache.New(opt.TokenExpiration, 1*time.Hour)
+	options = &httpclient.Options{
+		SignRequest: func(req *http.Request) error {
+			if req.URL.Path == TokenPath {
+				return nil
+			}
+			cachedToken, isFound := tokenCache.Get("token")
+			if isFound {
+				req.Header.Set(HeaderAuth, "Bearer "+cachedToken.(string))
+			} else {
+				token, err := c.GetToken(opt.AuthUser)
+				if err != nil {
+					return err
+				}
+				req.Header.Set(HeaderAuth, "Bearer "+token)
+				tokenCache.Set("token", token, cache.DefaultExpiration)
+			}
+			return nil
+		},
+	}
+	return options
 }
 
 func (c *Client) updateAPIPath() {
@@ -1030,7 +1037,7 @@ func (c *Client) GetToken(a *rbac.AuthUser) (string, error) {
 		return "", err
 	}
 	if resp == nil {
-		return "", fmt.Errorf("user %s generate token failder: ", a.Username)
+		return "", fmt.Errorf("user %s generate token failed: ", a.Username)
 	}
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -1045,5 +1052,5 @@ func (c *Client) GetToken(a *rbac.AuthUser) (string, error) {
 		}
 		return response.TokenStr, nil
 	}
-	return "", fmt.Errorf("user %s generate token failed, response StatusCode: %d", a.Username, resp.StatusCode)
+	return "", fmt.Errorf("user %s generate token failed, response status code: %d", a.Username, resp.StatusCode)
 }

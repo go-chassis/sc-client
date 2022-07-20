@@ -99,13 +99,7 @@ func NewClient(opt Options) (*Client, error) {
 		watchers: make(map[string]bool),
 		conns:    make(map[string]*websocket.Conn),
 	}
-	options := &httpclient.Options{
-		TLSConfig:  opt.TLSConfig,
-		Compressed: opt.Compressed,
-	}
-	if opt.EnableAuth {
-		options = c.extractSignRequest(opt, options)
-	}
+	options := c.buildClientOptions(opt)
 	var err error
 	c.client, err = httpclient.New(options)
 	if err != nil {
@@ -127,9 +121,16 @@ func NewClient(opt Options) (*Client, error) {
 	return c, nil
 }
 
-// extractSignRequest extract SignRequest option for client
-// when the authentication is enabled, the token of automatic renewal is added to the request header
-func (c *Client) extractSignRequest(opt Options, options *httpclient.Options) *httpclient.Options {
+// buildClientOptions build options for http client
+func (c *Client) buildClientOptions(opt Options) *httpclient.Options {
+	options := &httpclient.Options{
+		TLSConfig:  opt.TLSConfig,
+		Compressed: opt.Compressed,
+	}
+	if !opt.EnableAuth {
+		return options
+	}
+	// when the authentication is enabled, the token of automatic renewal is added to the request header
 	if opt.TokenExpiration == 0 {
 		opt.TokenExpiration = DefaultTokenExpiration
 	}

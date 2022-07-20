@@ -2,6 +2,8 @@ package sc_test
 
 import (
 	"github.com/go-chassis/cari/discovery"
+	"github.com/go-chassis/cari/rbac"
+	"github.com/go-chassis/openlog"
 	"github.com/go-chassis/sc-client"
 	"github.com/stretchr/testify/assert"
 
@@ -249,4 +251,40 @@ func TestClient_Health(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = c.Health()
 	assert.NoError(t, err)
+}
+
+func TestClient_Auth(t *testing.T) {
+	_, err := os.Hostname()
+	if err != nil {
+		openlog.Error("Get hostname failed.")
+		return
+	}
+	opt := &sc.Options{}
+	if !opt.EnableAuth {
+		// service-center need to open the rbac module
+		return
+	}
+	// root account login
+	c, err := sc.NewClient(
+		sc.Options{
+			Endpoints:  []string{"127.0.0.1:30100"},
+			EnableAuth: true,
+			AuthUser: &rbac.AuthUser{
+				Username: "root",
+				Password: "Complicated_password1",
+			},
+		})
+	assert.NoError(t, err)
+
+	httpHeader := c.GetDefaultHeaders()
+	assert.NotEmpty(t, httpHeader)
+
+	t.Run("get the root account token", func(t *testing.T) {
+		root_token, err := c.GetToken(&rbac.AuthUser{
+			Username: "root",
+			Password: "Complicated_password1",
+		})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, root_token)
+	})
 }

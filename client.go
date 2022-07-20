@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-chassis/cari/rbac"
+	"github.com/patrickmn/go-cache"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -25,23 +27,26 @@ import (
 
 // Define constants for the client
 const (
-	MicroservicePath    = "/microservices"
-	InstancePath        = "/instances"
-	BatchInstancePath   = "/instances/action"
-	SchemaPath          = "/schemas"
-	HeartbeatPath       = "/heartbeat"
-	ExistencePath       = "/existence"
-	WatchPath           = "/watcher"
-	StatusPath          = "/status"
-	DependencyPath      = "/dependencies"
-	PropertiesPath      = "/properties"
-	HeaderContentType   = "Content-Type"
-	HeaderUserAgent     = "User-Agent"
-	DefaultAddr         = "127.0.0.1:30100"
-	AppsPath            = "/apps"
-	DefaultRetryTimeout = 500 * time.Millisecond
-	HeaderRevision      = "X-Resource-Revision"
-	EnvProjectID        = "CSE_PROJECT_ID"
+	MicroservicePath       = "/microservices"
+	InstancePath           = "/instances"
+	BatchInstancePath      = "/instances/action"
+	SchemaPath             = "/schemas"
+	HeartbeatPath          = "/heartbeat"
+	ExistencePath          = "/existence"
+	WatchPath              = "/watcher"
+	StatusPath             = "/status"
+	DependencyPath         = "/dependencies"
+	PropertiesPath         = "/properties"
+	TokenPath              = "/v4/token"
+	HeaderContentType      = "Content-Type"
+	HeaderUserAgent        = "User-Agent"
+	HeaderAuth             = "Authorization"
+	DefaultAddr            = "127.0.0.1:30100"
+	AppsPath               = "/apps"
+	DefaultRetryTimeout    = 500 * time.Millisecond
+	DefaultTokenExpiration = 10 * time.Hour
+	HeaderRevision         = "X-Resource-Revision"
+	EnvProjectID           = "CSE_PROJECT_ID"
 	// EnvCheckSCIInterval sc instance health check interval in second
 	EnvCheckSCIInterval = "CHASSIS_SC_HEALTH_CHECK_INTERVAL"
 )
@@ -94,10 +99,7 @@ func NewClient(opt Options) (*Client, error) {
 		watchers: make(map[string]bool),
 		conns:    make(map[string]*websocket.Conn),
 	}
-	options := &httpclient.Options{
-		TLSConfig:  opt.TLSConfig,
-		Compressed: opt.Compressed,
-	}
+	options := c.buildClientOptions(opt)
 	var err error
 	c.client, err = httpclient.New(options)
 	if err != nil {
@@ -117,6 +119,42 @@ func NewClient(opt Options) (*Client, error) {
 	c.pool.SetAddress(opt.Endpoints)
 	c.pool.Monitor()
 	return c, nil
+}
+
+// buildClientOptions build options for http client
+func (c *Client) buildClientOptions(opt Options) *httpclient.Options {
+	options := &httpclient.Options{
+		TLSConfig:  opt.TLSConfig,
+		Compressed: opt.Compressed,
+	}
+	if !opt.EnableAuth {
+		return options
+	}
+	// when the authentication is enabled, the token of automatic renewal is added to the request header
+	if opt.TokenExpiration == 0 {
+		opt.TokenExpiration = DefaultTokenExpiration
+	}
+	tokenCache := cache.New(opt.TokenExpiration, 1*time.Hour)
+	options = &httpclient.Options{
+		SignRequest: func(req *http.Request) error {
+			if req.URL.Path == TokenPath {
+				return nil
+			}
+			cachedToken, isFound := tokenCache.Get("token")
+			if isFound {
+				req.Header.Set(HeaderAuth, "Bearer "+cachedToken.(string))
+			} else {
+				token, err := c.GetToken(opt.AuthUser)
+				if err != nil {
+					return err
+				}
+				req.Header.Set(HeaderAuth, "Bearer "+token)
+				tokenCache.Set("token", token, cache.DefaultExpiration)
+			}
+			return nil
+		},
+	}
+	return options
 }
 
 func (c *Client) updateAPIPath() {
@@ -981,4 +1019,39 @@ func (c *Client) startBackOff(microServiceID string, callback func(*MicroService
 	if err == nil {
 		return
 	}
+}
+
+// GetToken generate token according to user-password
+func (c *Client) GetToken(a *rbac.AuthUser) (string, error) {
+	request := rbac.Account{
+		Name:     a.Username,
+		Password: a.Password,
+	}
+	body, err := json.Marshal(request)
+	if err != nil {
+		return "", NewJSONException(err, "parse the username or password failed")
+	}
+
+	tokenUrl := c.formatURL(TokenPath, nil, nil)
+	resp, err := c.httpDo(http.MethodPost, tokenUrl, nil, body)
+	if err != nil {
+		return "", err
+	}
+	if resp == nil {
+		return "", fmt.Errorf("user %s generate token failed: ", a.Username)
+	}
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", NewIOException(err)
+	}
+
+	if resp.StatusCode == http.StatusOK {
+		var response rbac.Token
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			return "", NewJSONException(err, string(body))
+		}
+		return response.TokenStr, nil
+	}
+	return "", fmt.Errorf("user %s generate token failed, response status code: %d", a.Username, resp.StatusCode)
 }

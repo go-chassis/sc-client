@@ -2,6 +2,7 @@ package sc
 
 import (
 	"crypto/tls"
+	"github.com/go-chassis/cari/rbac"
 	"time"
 
 	"context"
@@ -14,9 +15,12 @@ type Options struct {
 	Timeout   time.Duration
 	TLSConfig *tls.Config
 	// Other options can be stored in a context
-	Context    context.Context
-	Compressed bool
-	Verbose    bool
+	Context         context.Context
+	Compressed      bool
+	Verbose         bool
+	EnableAuth      bool
+	AuthUser        *rbac.AuthUser
+	TokenExpiration time.Duration
 }
 
 //CallOptions is options when you call a API

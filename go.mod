@@ -6,8 +6,8 @@ require (
 	github.com/go-chassis/foundation v0.3.0
 	github.com/go-chassis/openlog v1.1.2
 	github.com/gorilla/websocket v1.4.2
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/stretchr/testify v1.6.1
-
 )
 
 go 1.13

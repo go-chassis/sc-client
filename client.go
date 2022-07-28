@@ -135,24 +135,22 @@ func (c *Client) buildClientOptions(opt Options) *httpclient.Options {
 		opt.TokenExpiration = DefaultTokenExpiration
 	}
 	tokenCache := cache.New(opt.TokenExpiration, 1*time.Hour)
-	options = &httpclient.Options{
-		SignRequest: func(req *http.Request) error {
-			if req.URL.Path == TokenPath {
-				return nil
-			}
-			cachedToken, isFound := tokenCache.Get("token")
-			if isFound {
-				req.Header.Set(HeaderAuth, "Bearer "+cachedToken.(string))
-			} else {
-				token, err := c.GetToken(opt.AuthUser)
-				if err != nil {
-					return err
-				}
-				req.Header.Set(HeaderAuth, "Bearer "+token)
-				tokenCache.Set("token", token, cache.DefaultExpiration)
-			}
+	options.SignRequest = func(req *http.Request) error {
+		if req.URL.Path == TokenPath {
 			return nil
-		},
+		}
+		cachedToken, isFound := tokenCache.Get("token")
+		if isFound {
+			req.Header.Set(HeaderAuth, "Bearer "+cachedToken.(string))
+		} else {
+			token, err := c.GetToken(opt.AuthUser)
+			if err != nil {
+				return err
+			}
+			req.Header.Set(HeaderAuth, "Bearer "+token)
+			tokenCache.Set("token", token, cache.DefaultExpiration)
+		}
+		return nil
 	}
 	return options
 }

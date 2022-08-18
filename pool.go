@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-var onceInit sync.Once
-var onceMonitor sync.Once
-var instance *AddressPool
-
 const (
 	available               string = "available"
 	unavailable             string = "unavailable"
@@ -21,22 +17,19 @@ const (
 
 // AddressPool registry address pool
 type AddressPool struct {
-	protocol   string
-	addressMap map[string]string
-	status     map[string]string
-	mutex      sync.RWMutex
+	protocol    string
+	addressMap  map[string]string
+	status      map[string]string
+	mutex       sync.RWMutex
+	onceMonitor sync.Once
 }
 
 // NewPool Get registry pool instance
 func NewPool(protocol string) *AddressPool {
-	onceInit.Do(func() {
-		instance = &AddressPool{
-			protocol:   protocol,
-			addressMap: make(map[string]string),
-			status:     make(map[string]string),
-		}
-	})
-	return instance
+	return &AddressPool{
+		addressMap: make(map[string]string),
+		status:     make(map[string]string),
+	}
 }
 
 // SetAddress set addresses to pool
@@ -89,7 +82,7 @@ func (p *AddressPool) checkConnectivity() {
 
 //Monitor monitor each service center network connectivity
 func (p *AddressPool) Monitor() {
-	onceMonitor.Do(func() {
+	p.onceMonitor.Do(func() {
 		p.checkConnectivity()
 		var interval time.Duration
 		v, isExist := os.LookupEnv(EnvCheckSCIInterval)

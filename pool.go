@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-var instance *AddressPool
-
 const (
 	available               string = "available"
 	unavailable             string = "unavailable"

@@ -297,24 +297,24 @@ func (c *Client) AddSchemas(microServiceID, schemaName, schemaInfo string) error
 		return errors.New("invalid micro service ID")
 	}
 
-	schemaURL := c.formatURL(fmt.Sprintf("%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID, SchemaPath), nil, nil)
+	schemaURL := c.formatURL(fmt.Sprintf("%s%s/%s%s/%s", MSAPIPath, MicroservicePath, microServiceID, SchemaPath, schemaName), nil, nil)
 	h := sha256.New()
 	_, err := h.Write([]byte(schemaInfo))
 	if err != nil {
 		return err
 	}
-	request := &discovery.ModifySchemasRequest{
-		Schemas: []*discovery.Schema{{
-			SchemaId: schemaName,
-			Schema:   schemaInfo,
-			Summary:  fmt.Sprintf("%x", h.Sum(nil))}},
+	request := &discovery.ModifySchemaRequest{
+		ServiceId: microServiceID,
+		SchemaId:  schemaName,
+		Schema:    schemaInfo,
+		Summary:   fmt.Sprintf("%x", h.Sum(nil)),
 	}
 	body, err := json.Marshal(request)
 	if err != nil {
 		return NewJSONException(err, string(body))
 	}
 
-	resp, err := c.httpDo("POST", schemaURL, nil, body)
+	resp, err := c.httpDo("PUT", schemaURL, nil, body)
 	if err != nil {
 		return err
 	}

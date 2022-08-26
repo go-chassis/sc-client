@@ -56,6 +56,7 @@ var (
 	MSAPIPath     = ""
 	GovernAPIPATH = ""
 	TenantHeader  = "X-Domain-Name"
+	defineOnce 	  = sync.Once{}
 )
 var (
 	// ErrNotModified means instance is not changed
@@ -156,12 +157,14 @@ func (c *Client) buildClientOptions(opt Options) *httpclient.Options {
 }
 
 func (c *Client) updateAPIPath() {
-	projectID, isExist := os.LookupEnv(EnvProjectID)
-	if !isExist {
-		projectID = "default"
-	}
-	MSAPIPath = "/v4/" + projectID + "/registry"
-	GovernAPIPATH = "/v4/" + projectID + "/govern"
+	defineOnce.Do(func() {
+		projectID, isExist := os.LookupEnv(EnvProjectID)
+		if !isExist {
+			projectID = "default"
+		}
+		MSAPIPath = "/v4/" + projectID + "/registry"
+		GovernAPIPATH = "/v4/" + projectID + "/govern"
+	})
 }
 
 // SyncEndpoints gets the endpoints of service-center in the cluster

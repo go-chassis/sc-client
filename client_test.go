@@ -1,6 +1,8 @@
 package sc_test
 
 import (
+	"sync"
+
 	"github.com/go-chassis/cari/discovery"
 	"github.com/go-chassis/cari/rbac"
 	"github.com/go-chassis/openlog"
@@ -286,5 +288,36 @@ func TestClient_Auth(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.NotEmpty(t, root_token)
+	})
+}
+
+func TestClient_DataRace(t *testing.T) {
+	c, err := sc.NewClient(
+		sc.Options{
+			Endpoints: []string{"127.0.0.1:30100"},
+		})
+	assert.NoError(t, err)
+
+	MSList, err := c.GetAllMicroServices()
+	assert.NotEmpty(t, MSList)
+	assert.NoError(t, err)
+
+	t.Run("should not race detected", func(t *testing.T) {
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			sc.NewClient(
+				sc.Options{
+					Endpoints: []string{"127.0.0.1:30100"},
+				})
+			wg.Done()
+		}()
+
+		go func() {
+			c.GetAllMicroServices()
+			wg.Done()
+		}()
+
+		wg.Wait()
 	})
 }

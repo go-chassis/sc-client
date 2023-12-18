@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chassis/cari/rbac"
-	"github.com/patrickmn/go-cache"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -17,12 +15,14 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/gorilla/websocket"
-
+	"github.com/go-chassis/cari/addresspool"
 	"github.com/go-chassis/cari/discovery"
+	"github.com/go-chassis/cari/rbac"
 	"github.com/go-chassis/foundation/httpclient"
 	"github.com/go-chassis/foundation/httputil"
 	"github.com/go-chassis/openlog"
+	"github.com/gorilla/websocket"
+	"github.com/patrickmn/go-cache"
 )
 
 // Define constants for the client
@@ -47,8 +47,6 @@ const (
 	DefaultTokenExpiration = 10 * time.Hour
 	HeaderRevision         = "X-Resource-Revision"
 	EnvProjectID           = "CSE_PROJECT_ID"
-	// EnvCheckSCIInterval sc instance health check interval in second
-	EnvCheckSCIInterval = "CHASSIS_SC_HEALTH_CHECK_INTERVAL"
 )
 
 // Define variables for the client
@@ -56,7 +54,7 @@ var (
 	MSAPIPath     = ""
 	GovernAPIPATH = ""
 	TenantHeader  = "X-Domain-Name"
-	defineOnce 	  = sync.Once{}
+	defineOnce    = sync.Once{}
 )
 var (
 	// ErrNotModified means instance is not changed
@@ -81,13 +79,13 @@ type Client struct {
 	// record the websocket connection with the service center
 	conns    map[string]*websocket.Conn
 	revision string
-	pool     *AddressPool
+	pool     *addresspool.Pool
 }
 
 // URLParameter maintains the list of parameters to be added in URL
 type URLParameter map[string]string
 
-//ResetRevision reset the revision to 0
+// ResetRevision reset the revision to 0
 func (c *Client) ResetRevision() {
 	c.revision = "0"
 }
@@ -116,9 +114,7 @@ func NewClient(opt Options) (*Client, error) {
 	}
 	//Update the API Base Path based on the project
 	c.updateAPIPath()
-	c.pool = NewPool(c.protocol)
-	c.pool.SetAddress(opt.Endpoints)
-	c.pool.Monitor()
+	c.pool = addresspool.NewPool(opt.Endpoints)
 	return c, nil
 }
 
@@ -175,23 +171,13 @@ func (c *Client) SyncEndpoints() error {
 	if err != nil {
 		return fmt.Errorf("sync SC ep failed. err:%s", err.Error())
 	}
-	eps := make([]string, 0)
-	for _, instance := range instances {
-		m := getProtocolMap(instance.Endpoints)
-		eps = append(eps, m["rest"])
-	}
-	if len(eps) != 0 {
-		c.pool.SetAddress(eps)
-		openlog.Info("Sync service center endpoints " + strings.Join(eps, ","))
-		return nil
-	}
-	return fmt.Errorf("sync endpoints failed")
+	return c.pool.SetAddressByInstances(instances)
 }
 
 func (c *Client) formatURL(api string, querys []URLParameter, options *CallOptions) string {
 	builder := URLBuilder{
 		Protocol:      c.protocol,
-		Host:          c.getAddress(),
+		Host:          c.GetAddress(),
 		Path:          api,
 		URLParameters: querys,
 		CallOptions:   options,
@@ -490,8 +476,8 @@ func (c *Client) GetMicroService(microServiceID string, opts ...CallOption) (*di
 	return nil, fmt.Errorf("GetMicroService failed, MicroServiceId: %s, response StatusCode: %d, response body: %s\n, microserviceURL: %s", microServiceID, resp.StatusCode, string(body), microserviceURL)
 }
 
-//BatchFindInstances fetch instances based on service name, env, app and version
-//finally it return instances grouped by service name
+// BatchFindInstances fetch instances based on service name, env, app and version
+// finally it return instances grouped by service name
 func (c *Client) BatchFindInstances(consumerID string, keys []*discovery.FindService, opts ...CallOption) (*discovery.BatchFindInstancesResponse, error) {
 	copts := &CallOptions{Revision: c.revision}
 	for _, opt := range opts {
@@ -779,7 +765,7 @@ func (c *Client) setupWSConnection(microServiceID, microServiceInstanceID string
 
 	u := url.URL{
 		Scheme: scheme,
-		Host:   c.getAddress(),
+		Host:   c.GetAddress(),
 		Path: fmt.Sprintf("%s%s/%s%s/%s%s", MSAPIPath, MicroservicePath, microServiceID,
 			InstancePath, microServiceInstanceID, "/heartbeat"),
 	}
@@ -951,7 +937,7 @@ func (c *Client) WatchMicroService(microServiceID string, callback func(*MicroSe
 			}
 			u := url.URL{
 				Scheme: scheme,
-				Host:   c.getAddress(),
+				Host:   c.GetAddress(),
 				Path: fmt.Sprintf("%s%s/%s%s", MSAPIPath,
 					MicroservicePath, microServiceID, WatchPath),
 			}
@@ -991,7 +977,7 @@ func (c *Client) WatchMicroService(microServiceID string, callback func(*MicroSe
 	return nil
 }
 
-func (c *Client) getAddress() string {
+func (c *Client) GetAddress() string {
 	return c.pool.GetAvailableAddress()
 }
 
@@ -1007,7 +993,7 @@ func (c *Client) startBackOff(microServiceID string, callback func(*MicroService
 	operation := func() error {
 		c.mutex.Lock()
 		c.watchers[microServiceID] = false
-		c.getAddress()
+		c.GetAddress()
 		c.mutex.Unlock()
 		err := c.WatchMicroService(microServiceID, callback)
 		if err != nil {

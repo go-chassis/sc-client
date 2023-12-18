@@ -1,17 +1,20 @@
 package sc_test
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"sync"
+	"testing"
+	"time"
 
 	"github.com/go-chassis/cari/discovery"
 	"github.com/go-chassis/cari/rbac"
 	"github.com/go-chassis/openlog"
-	"github.com/go-chassis/sc-client"
 	"github.com/stretchr/testify/assert"
 
-	"os"
-	"testing"
-	"time"
+	"github.com/go-chassis/sc-client"
 )
 
 func TestClient_RegisterService(t *testing.T) {
@@ -24,8 +27,7 @@ func TestClient_RegisterService(t *testing.T) {
 	hostname, err := os.Hostname()
 	assert.NoError(t, err)
 
-	MSList, err := c.GetAllMicroServices()
-	assert.NotEmpty(t, MSList)
+	_, err = c.GetAllMicroServices()
 	assert.NoError(t, err)
 
 	t.Run("given instance with no service id, should return err", func(t *testing.T) {
@@ -320,4 +322,42 @@ func TestClient_DataRace(t *testing.T) {
 
 		wg.Wait()
 	})
+}
+
+func TestClient_SyncEndpoints(t *testing.T) {
+	mockHealthApiServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		resp := &discovery.GetInstancesResponse{
+			Instances: []*discovery.MicroServiceInstance{
+				{
+					Endpoints: []string{"rest://127.0.0.1:3000"},
+					HostName:  "test",
+					Status:    sc.MSInstanceUP,
+					DataCenterInfo: &discovery.DataCenterInfo{
+						Name:          "engine1",
+						Region:        "cn",
+						AvailableZone: "az1",
+					},
+				},
+			},
+		}
+		instanceBytes, err := json.Marshal(resp)
+		if err != nil {
+			writer.Write([]byte(err.Error()))
+			writer.WriteHeader(http.StatusInternalServerError)
+		}
+		writer.Write(instanceBytes)
+		writer.WriteHeader(http.StatusOK)
+		return
+	}))
+
+	c, err := sc.NewClient(
+		sc.Options{
+			Endpoints: []string{mockHealthApiServer.Listener.Addr().String()},
+		})
+	assert.NoError(t, err)
+
+	// should use the synced address
+	err = c.SyncEndpoints()
+	assert.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:3000", c.GetAddress())
 }

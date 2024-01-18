@@ -925,6 +925,103 @@ func (c *Client) Close() error {
 	return nil
 }
 
+func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callback func(e *MicroServiceInstanceChangedEvent),
+	extraHandle func(action string)) error {
+	openlog.Info(fmt.Sprintf("WatchMicroServiceWithExtraHandle, microServiceID:%s", microServiceID))
+	if ready, ok := c.watchers[microServiceID]; !ok || !ready {
+		c.mutex.Lock()
+		if ready, ok := c.watchers[microServiceID]; !ok || !ready {
+			openlog.Info(fmt.Sprintf("WatchMicroServiceWithExtraHandle watch, microServiceID:%s", microServiceID))
+			c.watchers[microServiceID] = true
+			scheme := "wss"
+			if !c.opt.EnableSSL {
+				scheme = "ws"
+			}
+			u := url.URL{
+				Scheme: scheme,
+				Host:   c.GetAddress(),
+				Path: fmt.Sprintf("%s%s/%s%s", MSAPIPath,
+					MicroservicePath, microServiceID, WatchPath),
+			}
+			conn, _, err := c.wsDialer.Dial(u.String(), c.GetDefaultHeaders())
+			if err != nil {
+				c.watchers[microServiceID] = false
+				c.mutex.Unlock()
+				return fmt.Errorf("watching microservice dial catch an exception,microServiceID: %s, error:%s", microServiceID, err.Error())
+			}
+
+			c.conns[microServiceID] = conn
+			go func() {
+				for {
+					messageType, message, err := conn.ReadMessage()
+					if err != nil {
+						openlog.Error(fmt.Sprintf("%s:%s", "conn.ReadMessage()", err.Error()))
+						break
+					}
+					if messageType == websocket.TextMessage {
+						var response MicroServiceInstanceChangedEvent
+						err := json.Unmarshal(message, &response)
+						if err != nil {
+							if strings.Contains(string(message), "service does not exist") {
+								openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response), message", string(message)))
+								delete(c.conns, microServiceID)
+								delete(c.watchers, microServiceID)
+								openlog.Info(fmt.Sprintf("delete conn, microServiceID:%s", microServiceID))
+								extraHandle("serviceNotExist")
+								return
+							}
+							openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response), message", string(message)))
+							openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response)", err.Error()))
+							break
+						}
+						callback(&response)
+					}
+				}
+				err = conn.Close()
+				if err != nil {
+					openlog.Error(fmt.Sprintf("%s:%s", "conn.Close()", err.Error()))
+				}
+				delete(c.conns, microServiceID)
+				delete(c.watchers, microServiceID)
+				openlog.Info(fmt.Sprintf("conn stop, microServiceID:%s", microServiceID))
+				c.startBackOffWithExtraHandle(microServiceID, callback, extraHandle)
+			}()
+		}
+		c.mutex.Unlock()
+	}
+	return nil
+}
+
+func (c *Client) startBackOffWithExtraHandle(microServiceID string, callback func(*MicroServiceInstanceChangedEvent),
+	extraHandle func(action string)) {
+	boff := &backoff.ExponentialBackOff{
+		InitialInterval:     1000 * time.Millisecond,
+		RandomizationFactor: backoff.DefaultRandomizationFactor,
+		Multiplier:          backoff.DefaultMultiplier,
+		MaxInterval:         30000 * time.Millisecond,
+		MaxElapsedTime:      0,
+		Clock:               backoff.SystemClock,
+	}
+	operation := func() error {
+		c.mutex.Lock()
+		c.watchers[microServiceID] = false
+		c.GetAddress()
+		c.mutex.Unlock()
+		err := c.WatchMicroServiceWithExtraHandle(microServiceID, callback, extraHandle)
+		if err != nil {
+			openlog.Error(fmt.Sprintf("%s:%s", "startBackOffWithExtraHandle:WatchMicroServiceWithExtraHandle error", err.Error()))
+			return err
+		}
+		return nil
+	}
+
+	err := backoff.Retry(operation, boff)
+	if err == nil {
+		return
+	}
+	openlog.Error(fmt.Sprintf("%s:%s", "backoff.Retry", err.Error()))
+}
+
 // WatchMicroService creates a web socket connection to service-center to keep a watch on the providers for a micro-service
 func (c *Client) WatchMicroService(microServiceID string, callback func(*MicroServiceInstanceChangedEvent)) error {
 	if ready, ok := c.watchers[microServiceID]; !ok || !ready {

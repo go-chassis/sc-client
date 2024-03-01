@@ -43,6 +43,7 @@ const (
 	HeaderAuth             = "Authorization"
 	DefaultAddr            = "127.0.0.1:30100"
 	AppsPath               = "/apps"
+	PeerHealthPath         = "/v1/syncer/health"
 	DefaultRetryTimeout    = 500 * time.Millisecond
 	DefaultTokenExpiration = 10 * time.Hour
 	HeaderRevision         = "X-Resource-Revision"
@@ -82,6 +83,18 @@ type Client struct {
 	pool     *addresspool.Pool
 }
 
+type PeerStatusResp struct {
+	Peers []*Peer `json:"peers"`
+}
+
+type Peer struct {
+	Name      string   `json:"name"`
+	Kind      string   `json:"kind"`
+	Mode      []string `json:"mode"`
+	Endpoints []string `json:"endpoints"`
+	Status    string   `json:"status"`
+}
+
 // URLParameter maintains the list of parameters to be added in URL
 type URLParameter map[string]string
 
@@ -112,7 +125,7 @@ func NewClient(opt Options) (*Client, error) {
 		c.wsDialer = websocket.DefaultDialer
 		c.protocol = "http"
 	}
-	//Update the API Base Path based on the project
+	// Update the API Base Path based on the project
 	c.updateAPIPath()
 	c.pool = addresspool.NewPool(opt.Endpoints)
 	return c, nil
@@ -1138,4 +1151,29 @@ func (c *Client) GetToken(a *rbac.AuthUser) (string, error) {
 		return response.TokenStr, nil
 	}
 	return "", fmt.Errorf("user %s generate token failed, response status code: %d", a.Username, resp.StatusCode)
+}
+
+func (c *Client) CheckPeerStatus() (*PeerStatusResp, error) {
+	url := c.formatURL(fmt.Sprintf("%s", PeerHealthPath), nil, nil)
+	resp, err := c.httpDo(http.MethodGet, url, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("check the status of peer engine fail")
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, NewIOException(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, NewCommonException("result: %d %s", resp.StatusCode, string(body))
+	}
+
+	var response *PeerStatusResp
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return nil, NewJSONException(err, string(body))
+	}
+	return response, nil
 }

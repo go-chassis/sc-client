@@ -257,6 +257,16 @@ func TestClient_Health(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestClient_CheckPeerStatus(t *testing.T) {
+	c, err := sc.NewClient(
+		sc.Options{
+			Endpoints: []string{"127.0.0.1:30100"},
+		})
+	assert.NoError(t, err)
+	_, err = c.CheckPeerStatus()
+	assert.Equal(t, "Common exception", err.(*sc.RegistryException).Title)
+}
+
 func TestClient_Auth(t *testing.T) {
 	_, err := os.Hostname()
 	if err != nil {

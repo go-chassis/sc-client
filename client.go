@@ -1014,7 +1014,7 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 }
 
 func (c *Client) startBackOffWithExtraHandle(microServiceID string, callback func(*MicroServiceInstanceChangedEvent),
-	extraHandle func(action string)) {
+	extraHandle func(action string, opts ...CallOption)) {
 	boff := &backoff.ExponentialBackOff{
 		InitialInterval:     1000 * time.Millisecond,
 		RandomizationFactor: backoff.DefaultRandomizationFactor,

@@ -28,6 +28,7 @@ type CallOptions struct {
 	WithoutRevision bool
 	Revision        string
 	WithGlobal      bool
+	Address         string
 }
 
 //WithoutRevision ignore current revision number
@@ -41,6 +42,13 @@ func WithoutRevision() CallOption {
 func WithGlobal() CallOption {
 	return func(o *CallOptions) {
 		o.WithGlobal = true
+	}
+}
+
+//WithAddress query resources with the sc address
+func WithAddress(address string) CallOption {
+	return func(o *CallOptions) {
+		o.Address = address
 	}
 }
 

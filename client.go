@@ -189,7 +189,7 @@ func (c *Client) SyncEndpoints() error {
 
 func (c *Client) formatURL(api string, querys []URLParameter, options *CallOptions) string {
 	host := c.GetAddress()
-	if len(options.Address) != 0 {
+	if options != nil && len(options.Address) != 0 {
 		host = options.Address
 	}
 	builder := URLBuilder{

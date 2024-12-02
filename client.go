@@ -188,9 +188,13 @@ func (c *Client) SyncEndpoints() error {
 }
 
 func (c *Client) formatURL(api string, querys []URLParameter, options *CallOptions) string {
+	host := c.GetAddress()
+	if options != nil && len(options.Address) != 0 {
+		host = options.Address
+	}
 	builder := URLBuilder{
 		Protocol:      c.protocol,
-		Host:          c.GetAddress(),
+		Host:          host,
 		Path:          api,
 		URLParameters: querys,
 		CallOptions:   options,
@@ -939,7 +943,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callback func(e *MicroServiceInstanceChangedEvent),
-	extraHandle func(action string)) error {
+	extraHandle func(action string, opts ...CallOption)) error {
 	openlog.Info(fmt.Sprintf("WatchMicroServiceWithExtraHandle, microServiceID:%s", microServiceID))
 	if ready, ok := c.watchers[microServiceID]; !ok || !ready {
 		c.mutex.Lock()
@@ -950,9 +954,10 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 			if !c.opt.EnableSSL {
 				scheme = "ws"
 			}
+			host := c.GetAddress()
 			u := url.URL{
 				Scheme: scheme,
-				Host:   c.GetAddress(),
+				Host:   host,
 				Path: fmt.Sprintf("%s%s/%s%s", MSAPIPath,
 					MicroservicePath, microServiceID, WatchPath),
 			}
@@ -964,6 +969,9 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 			}
 
 			c.conns[microServiceID] = conn
+			//After successfully subscribing to the service, pull the dependency again.
+			//This prevents the event from not being notified after one of the dual engines fails and the other has no dependencies.
+			extraHandle("watchSucceed", WithAddress(host))
 			go func() {
 				for {
 					messageType, message, err := conn.ReadMessage()
@@ -1006,7 +1014,7 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 }
 
 func (c *Client) startBackOffWithExtraHandle(microServiceID string, callback func(*MicroServiceInstanceChangedEvent),
-	extraHandle func(action string)) {
+	extraHandle func(action string, opts ...CallOption)) {
 	boff := &backoff.ExponentialBackOff{
 		InitialInterval:     1000 * time.Millisecond,
 		RandomizationFactor: backoff.DefaultRandomizationFactor,

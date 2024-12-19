@@ -932,6 +932,8 @@ func (c *Client) UpdateMicroServiceProperties(microServiceID string, microServic
 
 // Close closes the connection with Service-Center
 func (c *Client) Close() error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	for k, v := range c.conns {
 		err := v.Close()
 		if err != nil {

@@ -932,6 +932,8 @@ func (c *Client) UpdateMicroServiceProperties(microServiceID string, microServic
 
 // Close closes the connection with Service-Center
 func (c *Client) Close() error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	for k, v := range c.conns {
 		err := v.Close()
 		if err != nil {
@@ -985,8 +987,10 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 						if err != nil {
 							if strings.Contains(string(message), "service does not exist") {
 								openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response), message", string(message)))
+								c.mutex.Lock()
 								delete(c.conns, microServiceID)
 								delete(c.watchers, microServiceID)
+								c.mutex.Unlock()
 								openlog.Info(fmt.Sprintf("delete conn, microServiceID:%s", microServiceID))
 								extraHandle("serviceNotExist")
 								return
@@ -1002,8 +1006,10 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 				if err != nil {
 					openlog.Error(fmt.Sprintf("%s:%s", "conn.Close()", err.Error()))
 				}
+				c.mutex.Lock()
 				delete(c.conns, microServiceID)
 				delete(c.watchers, microServiceID)
+				c.mutex.Unlock()
 				openlog.Info(fmt.Sprintf("conn stop, microServiceID:%s", microServiceID))
 				c.startBackOffWithExtraHandle(microServiceID, callback, extraHandle)
 			}()
@@ -1086,7 +1092,9 @@ func (c *Client) WatchMicroService(microServiceID string, callback func(*MicroSe
 				if err != nil {
 					openlog.Error(err.Error())
 				}
+				c.mutex.Lock()
 				delete(c.conns, microServiceID)
+				c.mutex.Unlock()
 				c.startBackOff(microServiceID, callback)
 			}()
 		}

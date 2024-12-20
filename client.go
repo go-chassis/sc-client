@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/go-chassis/cari/addresspool"
 	"github.com/go-chassis/cari/discovery"
 	"github.com/go-chassis/cari/rbac"
@@ -22,7 +21,6 @@ import (
 	"github.com/go-chassis/foundation/httputil"
 	"github.com/go-chassis/openlog"
 	"github.com/gorilla/websocket"
-	"github.com/patrickmn/go-cache"
 )
 
 // Define constants for the client
@@ -76,6 +74,8 @@ type Client struct {
 	protocol string
 	watchers map[string]bool
 	mutex    sync.Mutex
+	// addresspool mutex
+	poolMutex    sync.Mutex
 	wsDialer *websocket.Dialer
 	// record the websocket connection with the service center
 	conns    map[string]*websocket.Conn
@@ -131,11 +131,31 @@ func NewClient(opt Options) (*Client, error) {
 	return c, nil
 }
 
+// Reset the service center client
+func (c *Client) Reset(opt Options) error {
+	c.poolMutex.Lock()
+	defer c.poolMutex.Unlock()
+	options := c.buildClientOptions(opt)
+	var err error
+	c.client, err = httpclient.New(options)
+	if err != nil {
+		return err
+	}
+	c.protocol = "https"
+	if !c.opt.EnableSSL {
+		c.wsDialer = websocket.DefaultDialer
+		c.protocol = "http"
+	}
+	c.pool.ResetAddress(opt.Endpoints)
+	return nil
+}
+
 // buildClientOptions build options for http client
 func (c *Client) buildClientOptions(opt Options) *httpclient.Options {
 	options := &httpclient.Options{
-		TLSConfig:  opt.TLSConfig,
-		Compressed: opt.Compressed,
+		TLSConfig:      opt.TLSConfig,
+		Compressed:     opt.Compressed,
+		RequestTimeout: opt.Timeout,
 	}
 	if !opt.EnableAuth {
 		return options
@@ -147,6 +167,10 @@ func (c *Client) buildClientOptions(opt Options) *httpclient.Options {
 	tokenCache := cache.New(opt.TokenExpiration, 1*time.Hour)
 	options.SignRequest = func(req *http.Request) error {
 		if req.URL.Path == TokenPath {
+			return nil
+		}
+		if opt.AuthToken != "" {
+			req.Header.Set(HeaderAuth, "Bearer "+opt.AuthToken)
 			return nil
 		}
 		cachedToken, isFound := tokenCache.Get("token")
@@ -180,6 +204,8 @@ func (c *Client) updateAPIPath() {
 // if your service center cluster is not behind a load balancing service like ELB,nginx etc
 // then you can use this function
 func (c *Client) SyncEndpoints() error {
+	c.poolMutex.Lock()
+	defer c.poolMutex.Unlock()
 	instances, err := c.Health()
 	if err != nil {
 		return fmt.Errorf("sync SC ep failed. err:%s", err.Error())
@@ -941,6 +967,7 @@ func (c *Client) Close() error {
 		}
 		delete(c.conns, k)
 	}
+	c.pool.Close()
 	return nil
 }
 
@@ -971,8 +998,8 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 			}
 
 			c.conns[microServiceID] = conn
-			//After successfully subscribing to the service, pull the dependency again.
-			//This prevents the event from not being notified after one of the dual engines fails and the other has no dependencies.
+			// After successfully subscribing to the service, pull the dependency again.
+			// This prevents the event from not being notified after one of the dual engines fails and the other has no dependencies.
 			extraHandle("watchSucceed", WithAddress(host))
 			go func() {
 				for {

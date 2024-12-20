@@ -1,11 +1,11 @@
 package sc
 
 import (
+	"context"
 	"crypto/tls"
-	"github.com/go-chassis/cari/rbac"
 	"time"
 
-	"context"
+	"github.com/go-chassis/cari/rbac"
 )
 
 // Options is the list of dynamic parameter's which can be passed to the Client while creating a new client
@@ -20,10 +20,11 @@ type Options struct {
 	Verbose         bool
 	EnableAuth      bool
 	AuthUser        *rbac.AuthUser
+	AuthToken       string
 	TokenExpiration time.Duration
 }
 
-//CallOptions is options when you call a API
+// CallOptions is options when you call a API
 type CallOptions struct {
 	WithoutRevision bool
 	Revision        string
@@ -31,26 +32,26 @@ type CallOptions struct {
 	Address         string
 }
 
-//WithoutRevision ignore current revision number
+// WithoutRevision ignore current revision number
 func WithoutRevision() CallOption {
 	return func(o *CallOptions) {
 		o.WithoutRevision = true
 	}
 }
 
-//WithGlobal query resources include other aggregated SC
+// WithGlobal query resources include other aggregated SC
 func WithGlobal() CallOption {
 	return func(o *CallOptions) {
 		o.WithGlobal = true
 	}
 }
 
-//WithAddress query resources with the sc address
+// WithAddress query resources with the sc address
 func WithAddress(address string) CallOption {
 	return func(o *CallOptions) {
 		o.Address = address
 	}
 }
 
-//CallOption is receiver for options and chang the attribute of it
+// CallOption is receiver for options and chang the attribute of it
 type CallOption func(*CallOptions)

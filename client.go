@@ -74,6 +74,8 @@ type Client struct {
 	protocol string
 	watchers map[string]bool
 	mutex    sync.Mutex
+	// addresspool mutex
+	poolMutex    sync.Mutex
 	wsDialer *websocket.Dialer
 	// record the websocket connection with the service center
 	conns    map[string]*websocket.Conn
@@ -131,8 +133,8 @@ func NewClient(opt Options) (*Client, error) {
 
 // Reset the service center client
 func (c *Client) Reset(opt Options) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.poolMutex.Lock()
+	defer c.poolMutex.Unlock()
 	options := c.buildClientOptions(opt)
 	var err error
 	c.client, err = httpclient.New(options)
@@ -202,8 +204,8 @@ func (c *Client) updateAPIPath() {
 // if your service center cluster is not behind a load balancing service like ELB,nginx etc
 // then you can use this function
 func (c *Client) SyncEndpoints() error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.poolMutex.Lock()
+	defer c.poolMutex.Unlock()
 	instances, err := c.Health()
 	if err != nil {
 		return fmt.Errorf("sync SC ep failed. err:%s", err.Error())

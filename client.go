@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/go-chassis/cari/addresspool"
 	"github.com/go-chassis/cari/discovery"
 	"github.com/go-chassis/cari/rbac"
@@ -21,6 +22,7 @@ import (
 	"github.com/go-chassis/foundation/httputil"
 	"github.com/go-chassis/openlog"
 	"github.com/gorilla/websocket"
+	"github.com/patrickmn/go-cache"
 )
 
 // Define constants for the client

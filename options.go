@@ -3,6 +3,7 @@ package sc
 import (
 	"context"
 	"crypto/tls"
+	"net/http"
 	"time"
 
 	"github.com/go-chassis/cari/rbac"
@@ -22,6 +23,7 @@ type Options struct {
 	AuthUser        *rbac.AuthUser
 	AuthToken       string
 	TokenExpiration time.Duration
+	SignRequest     func(*http.Request) error
 }
 
 // CallOptions is options when you call a API

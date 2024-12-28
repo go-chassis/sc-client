@@ -77,8 +77,8 @@ type Client struct {
 	watchers map[string]bool
 	mutex    sync.Mutex
 	// addresspool mutex
-	poolMutex    sync.Mutex
-	wsDialer *websocket.Dialer
+	poolMutex sync.Mutex
+	wsDialer  *websocket.Dialer
 	// record the websocket connection with the service center
 	conns    map[string]*websocket.Conn
 	revision string
@@ -160,6 +160,10 @@ func (c *Client) buildClientOptions(opt Options) *httpclient.Options {
 		RequestTimeout: opt.Timeout,
 	}
 	if !opt.EnableAuth {
+		return options
+	}
+	if opt.SignRequest != nil {
+		options.SignRequest = opt.SignRequest
 		return options
 	}
 	// when the authentication is enabled, the token of automatic renewal is added to the request header

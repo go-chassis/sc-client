@@ -85,7 +85,7 @@ type Client struct {
 	pool     *addresspool.Pool
 }
 
-func (c *Client) dialWebsocket(urlStr string) (*websocket.Conn, *http.Response, error) {
+func (c *Client) dialWebsocket(url *url.URL) (*websocket.Conn, *http.Response, error) {
 	var err error
 	handshakeReq := &http.Request{Header: c.GetDefaultHeaders()}
 	if c.opt.SignRequest != nil {
@@ -100,7 +100,7 @@ func (c *Client) dialWebsocket(urlStr string) (*websocket.Conn, *http.Response, 
 		}
 	}
 
-	return c.wsDialer.Dial(urlStr, handshakeReq.Header)
+	return c.wsDialer.Dial(url.String(), handshakeReq.Header)
 }
 
 type PeerStatusResp struct {
@@ -837,7 +837,7 @@ func (c *Client) setupWSConnection(microServiceID, microServiceInstanceID string
 			InstancePath, microServiceInstanceID, "/heartbeat"),
 	}
 
-	conn, _, err := c.dialWebsocket(u.String())
+	conn, _, err := c.dialWebsocket(&u)
 	if err != nil {
 		openlog.Error(fmt.Sprintf("watching microservice dial catch an exception,microServiceID: %s, error:%s", microServiceID, err.Error()))
 		return err
@@ -1014,7 +1014,7 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 				Path: fmt.Sprintf("%s%s/%s%s", MSAPIPath,
 					MicroservicePath, microServiceID, WatchPath),
 			}
-			conn, _, err := c.dialWebsocket(u.String())
+			conn, _, err := c.dialWebsocket(&u)
 			if err != nil {
 				c.watchers[microServiceID] = false
 				c.mutex.Unlock()
@@ -1116,7 +1116,7 @@ func (c *Client) WatchMicroService(microServiceID string, callback func(*MicroSe
 				Path: fmt.Sprintf("%s%s/%s%s", MSAPIPath,
 					MicroservicePath, microServiceID, WatchPath),
 			}
-			conn, _, err := c.dialWebsocket(u.String())
+			conn, _, err := c.dialWebsocket(&u)
 			if err != nil {
 				c.watchers[microServiceID] = false
 				c.mutex.Unlock()

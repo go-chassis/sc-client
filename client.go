@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-chassis/cari/addresspool"
 	"github.com/go-chassis/cari/discovery"
@@ -88,7 +87,7 @@ type Client struct {
 
 func (c *Client) dialWebsocket(url *url.URL) (*websocket.Conn, *http.Response, error) {
 	var err error
-	handshakeReq := &http.Request{Header: c.GetDefaultHeaders()}
+	handshakeReq := &http.Request{Header: c.GetDefaultHeaders(), URL: url}
 	if c.opt.SignRequest != nil {
 		if err = c.opt.SignRequest(handshakeReq); err != nil {
 			openlog.Error("sign websocket request failed" + err.Error())

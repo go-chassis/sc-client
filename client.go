@@ -271,7 +271,6 @@ func (c *Client) httpDo(method string, rawURL string, headers http.Header, body 
 	for k, v := range c.GetDefaultHeaders() {
 		headers[k] = v
 	}
-	openlog.Info(fmt.Sprintf("headers:%v", headers))
 	return c.client.Do(context.Background(), method, rawURL, headers, body)
 }
 

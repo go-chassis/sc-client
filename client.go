@@ -38,6 +38,7 @@ const (
 	DependencyPath         = "/dependencies"
 	PropertiesPath         = "/properties"
 	TokenPath              = "/v4/token"
+	ReadinessPath          = "/health/readiness"
 	HeaderContentType      = "Content-Type"
 	HeaderUserAgent        = "User-Agent"
 	HeaderAuth             = "Authorization"
@@ -147,7 +148,13 @@ func NewClient(opt Options) (*Client, error) {
 	}
 	// Update the API Base Path based on the project
 	c.updateAPIPath()
-	c.pool = addresspool.NewPool(opt.Endpoints)
+	c.pool = addresspool.NewPool(opt.Endpoints, addresspool.Options{
+		HttpProbeOptions: &addresspool.HttpProbeOptions{
+			Client:   c.client,
+			Protocol: c.protocol,
+			Path:     MSAPIPath + ReadinessPath,
+		},
+	})
 	return c, nil
 }
 

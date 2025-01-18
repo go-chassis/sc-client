@@ -14,3 +14,4 @@
 *.out
 glide.lock
 .idea/
+vendor/

@@ -335,11 +335,18 @@ func TestClient_DataRace(t *testing.T) {
 }
 
 func TestClient_SyncEndpoints(t *testing.T) {
-	mockHealthApiServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	os.Setenv("CHASSIS_SC_HEALTH_CHECK_INTERVAL", "1")
+
+	anotherScServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+		return
+	}))
+
+	scServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		resp := &discovery.GetInstancesResponse{
 			Instances: []*discovery.MicroServiceInstance{
 				{
-					Endpoints: []string{"rest://127.0.0.1:3000"},
+					Endpoints: []string{"rest://" + anotherScServer.Listener.Addr().String()},
 					HostName:  "test",
 					Status:    sc.MSInstanceUP,
 					DataCenterInfo: &discovery.DataCenterInfo{
@@ -362,12 +369,16 @@ func TestClient_SyncEndpoints(t *testing.T) {
 
 	c, err := sc.NewClient(
 		sc.Options{
-			Endpoints: []string{mockHealthApiServer.Listener.Addr().String()},
+			Endpoints: []string{scServer.Listener.Addr().String()},
 		})
 	assert.NoError(t, err)
+	assert.Equal(t, scServer.Listener.Addr().String(), c.GetAddress()) // default
 
-	// should use the synced address
 	err = c.SyncEndpoints()
-	assert.NoError(t, err)
-	assert.Equal(t, "127.0.0.1:3000", c.GetAddress())
+	assert.Equal(t, scServer.Listener.Addr().String(), c.GetAddress())
+
+	scServer.Close()
+	time.Sleep(3*time.Second + 100*time.Millisecond)
+	// sc stopped, should use the synced address
+	assert.Equal(t, anotherScServer.Listener.Addr().String(), c.GetAddress())
 }

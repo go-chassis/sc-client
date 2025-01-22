@@ -38,6 +38,7 @@ const (
 	DependencyPath         = "/dependencies"
 	PropertiesPath         = "/properties"
 	TokenPath              = "/v4/token"
+	ReadinessPath          = "/health/readiness"
 	HeaderContentType      = "Content-Type"
 	HeaderUserAgent        = "User-Agent"
 	HeaderAuth             = "Authorization"
@@ -147,7 +148,13 @@ func NewClient(opt Options) (*Client, error) {
 	}
 	// Update the API Base Path based on the project
 	c.updateAPIPath()
-	c.pool = addresspool.NewPool(opt.Endpoints)
+	c.pool = addresspool.NewPool(opt.Endpoints, addresspool.Options{
+		HttpProbeOptions: &addresspool.HttpProbeOptions{
+			Client:   c.client,
+			Protocol: c.protocol,
+			Path:     MSAPIPath + ReadinessPath,
+		},
+	})
 	return c, nil
 }
 
@@ -1187,9 +1194,15 @@ func (c *Client) startBackOff(microServiceID string, callback func(*MicroService
 
 // GetToken generate token according to user-password
 func (c *Client) GetToken(a *rbac.AuthUser) (string, error) {
+	return c.GetTokenWithExpiration(a, "")
+}
+
+// GetTokenWithExpiration expiration: 15m~24h, default 12h
+func (c *Client) GetTokenWithExpiration(a *rbac.AuthUser, expiration string) (string, error) {
 	request := rbac.Account{
-		Name:     a.Username,
-		Password: a.Password,
+		Name:                a.Username,
+		Password:            a.Password,
+		TokenExpirationTime: expiration,
 	}
 	body, err := json.Marshal(request)
 	if err != nil {

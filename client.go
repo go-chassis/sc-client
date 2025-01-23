@@ -1194,9 +1194,15 @@ func (c *Client) startBackOff(microServiceID string, callback func(*MicroService
 
 // GetToken generate token according to user-password
 func (c *Client) GetToken(a *rbac.AuthUser) (string, error) {
+	return c.GetTokenWithExpiration(a, "")
+}
+
+// GetTokenWithExpiration expiration: 15m~24h, default 12h
+func (c *Client) GetTokenWithExpiration(a *rbac.AuthUser, expiration string) (string, error) {
 	request := rbac.Account{
-		Name:     a.Username,
-		Password: a.Password,
+		Name:                a.Username,
+		Password:            a.Password,
+		TokenExpirationTime: expiration,
 	}
 	body, err := json.Marshal(request)
 	if err != nil {

@@ -231,6 +231,10 @@ func (c *Client) updateAPIPath() {
 	})
 }
 
+func (c *Client) CheckReadiness() int {
+	return c.pool.CheckReadiness()
+}
+
 // SyncEndpoints gets the endpoints of service-center in the cluster
 // if your service center cluster is not behind a load balancing service like ELB,nginx etc
 // then you can use this function

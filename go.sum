@@ -6,8 +6,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/deckarep/golang-set v1.7.1 h1:SCQV0S6gTtp6itiFrTqI+pfmJ4LN85S1YzhDf9rTHJQ=
 github.com/deckarep/golang-set v1.7.1/go.mod h1:93vsz/8Wt4joVM7c2AVqh+YRMiUSc14yDtF28KmMOgQ=
-github.com/go-chassis/cari v0.9.1-0.20250118080951-ce3e155fb54e h1:c3eDfQl5arzUMvpZqG+PL6SCPu6nmR7phjeSLrMMzMk=
-github.com/go-chassis/cari v0.9.1-0.20250118080951-ce3e155fb54e/go.mod h1:ibqLyh+Q+1n9PlldW3glD9G+2s/yeSyVMCCkQWKRwuE=
+github.com/go-chassis/cari v0.9.1-0.20250218030513-c24f08ad58b0 h1:QDdVM6MfNSmQNF6WxUYvoMRVkJ87/fdaRpz4PPisRIA=
+github.com/go-chassis/cari v0.9.1-0.20250218030513-c24f08ad58b0/go.mod h1:ibqLyh+Q+1n9PlldW3glD9G+2s/yeSyVMCCkQWKRwuE=
 github.com/go-chassis/foundation v0.4.0 h1:z0xETnSxF+vRXWjoIhOdzt6rywjZ4sB++utEl4YgWEY=
 github.com/go-chassis/foundation v0.4.0/go.mod h1:6NsIUaHghTFRGfCBcZN011zl196F6OR5QvD9N+P4oWU=
 github.com/go-chassis/openlog v1.1.3 h1:XqIOvZ8YPJ9o9lLtLBskQNNWolK5kC6a4Sv7r4s9sZ4=

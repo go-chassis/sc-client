@@ -41,6 +41,13 @@ func WithoutRevision() CallOption {
 	}
 }
 
+// WithRevision query resources with the revision
+func WithRevision(revision string) CallOption {
+	return func(o *CallOptions) {
+		o.Revision = revision
+	}
+}
+
 // WithGlobal query resources include other aggregated SC
 func WithGlobal() CallOption {
 	return func(o *CallOptions) {

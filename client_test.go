@@ -154,6 +154,7 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 		assert.True(t, ok)
 	})
 
+	var rst *sc.FindMicroServiceInstancesResult
 	t.Run("register instance and update props, should success", func(t *testing.T) {
 		iid, err := registryClient.RegisterMicroServiceInstance(microServiceInstance)
 		assert.NoError(t, err)
@@ -164,21 +165,41 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 			iid, microServiceInstance)
 		assert.True(t, ok)
 		assert.NoError(t, err)
-		instances, err := registryClient.FindMicroServiceInstances(microServiceInstance.ServiceId,
+		rst, err = registryClient.FindInstances(microServiceInstance.ServiceId,
 			"default",
-			"scUTServer", "0.0.1")
+			"scUTServer")
 		assert.NoError(t, err)
-		assert.Equal(t, "x", instances[0].Properties["project"])
+		assert.Equal(t, "x", rst.Instances[0].Properties["project"])
 	})
 
-	t.Log("find again, should get ErrNotModified")
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1")
-	assert.Equal(t, sc.ErrNotModified, err)
+	t.Log("find again, should get no error")
+	rstInstances, err := registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0%2B")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, rstInstances)
+
+	t.Log("find again, should get no error")
+	newRst, err := registryClient.FindInstances(sid, "default", "scUTServer")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, newRst.Revision)
+	assert.NotEmpty(t, newRst.Instances)
+	assert.Equal(t, newRst.Revision, rst.Revision)
 
 	t.Log("find again without revision, should get nil error")
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1",
-		sc.WithoutRevision())
+	newRst, err = registryClient.FindInstances(sid, "default", "scUTServer", sc.WithoutRevision())
 	assert.NoError(t, err)
+	assert.NotEmpty(t, newRst.Revision)
+	assert.NotEmpty(t, newRst.Instances)
+	assert.Equal(t, newRst.Revision, rst.Revision)
+
+	t.Log("find again with different revision, should get nil error")
+	newRst, err = registryClient.FindInstances(sid, "default", "scUTServer", sc.WithRevision("123"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, newRst.Revision)
+	assert.NotEmpty(t, newRst.Instances)
+
+	t.Log("find again with same revision, should get ErrNotModified")
+	newRst, err = registryClient.FindInstances(sid, "default", "scUTServer", sc.WithRevision(newRst.Revision))
+	assert.Equal(t, sc.ErrNotModified, err)
 
 	t.Log("register new and find")
 	microServiceInstance2 := &discovery.MicroServiceInstance{
@@ -189,17 +210,10 @@ func TestRegistryClient_FindMicroServiceInstances(t *testing.T) {
 	}
 	_, err = registryClient.RegisterMicroServiceInstance(microServiceInstance2)
 	time.Sleep(3 * time.Second)
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1")
+	_, err = registryClient.FindInstances(sid, "default", "scUTServer")
 	assert.NoError(t, err)
 
-	t.Log("after reset")
-	registryClient.ResetRevision()
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1")
-	assert.NoError(t, err)
-	_, err = registryClient.FindMicroServiceInstances(sid, "default", "scUTServer", "0.0.1")
-	assert.Equal(t, sc.ErrNotModified, err)
-
-	_, err = registryClient.FindMicroServiceInstances(sid, "AppIdNotExists", "ServerNotExists", "0.0.1")
+	_, err = registryClient.FindInstances(sid, "AppIdNotExists", "ServerNotExists")
 	assert.Equal(t, sc.ErrMicroServiceNotExists, err)
 
 	f := &discovery.FindService{

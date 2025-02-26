@@ -81,9 +81,8 @@ type Client struct {
 	poolMutex sync.Mutex
 	wsDialer  *websocket.Dialer
 	// record the websocket connection with the service center
-	conns    map[string]*websocket.Conn
-	revision string
-	pool     *addresspool.Pool
+	conns map[string]*websocket.Conn
+	pool  *addresspool.Pool
 }
 
 func (c *Client) dialWebsocket(url *url.URL) (*websocket.Conn, *http.Response, error) {
@@ -119,16 +118,10 @@ type Peer struct {
 // URLParameter maintains the list of parameters to be added in URL
 type URLParameter map[string]string
 
-// ResetRevision reset the revision to 0
-func (c *Client) ResetRevision() {
-	c.revision = "0"
-}
-
 // NewClient create a the service center client
 func NewClient(opt Options) (*Client, error) {
 	c := &Client{
 		opt:      opt,
-		revision: "0",
 		watchers: make(map[string]bool),
 		conns:    make(map[string]*websocket.Conn),
 	}
@@ -557,7 +550,7 @@ func (c *Client) GetMicroService(microServiceID string, opts ...CallOption) (*di
 // BatchFindInstances fetch instances based on service name, env, app and version
 // finally it return instances grouped by service name
 func (c *Client) BatchFindInstances(consumerID string, keys []*discovery.FindService, opts ...CallOption) (*discovery.BatchFindInstancesResponse, error) {
-	copts := &CallOptions{Revision: c.revision}
+	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
 	}
@@ -596,9 +589,27 @@ func (c *Client) BatchFindInstances(consumerID string, keys []*discovery.FindSer
 }
 
 // FindMicroServiceInstances find microservice instance using consumerID, appID, name and version rule
+//
+// Deprecated: use FindInstances instead
 func (c *Client) FindMicroServiceInstances(consumerID, appID, microServiceName,
 	versionRule string, opts ...CallOption) ([]*discovery.MicroServiceInstance, error) {
-	copts := &CallOptions{Revision: c.revision}
+	rst, err := c.findInstances(consumerID, appID, microServiceName, versionRule, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return rst.Instances, nil
+}
+
+// FindInstances find microservice instance
+func (c *Client) FindInstances(consumerID, appID, microServiceName string,
+	opts ...CallOption) (*FindMicroServiceInstancesResult, error) {
+	return c.findInstances(consumerID, appID, microServiceName, "0%2B", opts...) // 0+, all version
+}
+
+// FindInstances find microservice instance using consumerID, appID, name
+func (c *Client) findInstances(consumerID, appID, microServiceName,
+	versionRule string, opts ...CallOption) (*FindMicroServiceInstancesResult, error) {
+	copts := &CallOptions{}
 	for _, opt := range opts {
 		opt(copts)
 	}
@@ -626,13 +637,10 @@ func (c *Client) FindMicroServiceInstances(consumerID, appID, microServiceName,
 		if err != nil {
 			return nil, NewJSONException(err, string(body))
 		}
-		r := resp.Header.Get(HeaderRevision)
-		if r != c.revision && r != "" {
-			c.revision = r
-			openlog.Debug("service center has new revision " + c.revision)
-		}
-
-		return response.Instances, nil
+		return &FindMicroServiceInstancesResult{
+			Instances: response.Instances,
+			Revision:  resp.Header.Get(HeaderRevision),
+		}, nil
 	}
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, ErrNotModified

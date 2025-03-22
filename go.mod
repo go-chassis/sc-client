@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.1
-	github.com/go-chassis/cari v0.9.1-0.20250218030513-c24f08ad58b0
+	github.com/go-chassis/cari v0.9.1-0.20250322063348-41f1988548c4
 	github.com/go-chassis/foundation v0.4.0
 	github.com/go-chassis/openlog v1.1.3
 	github.com/gorilla/websocket v1.4.3-0.20210424162022-e8629af678b7

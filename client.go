@@ -143,7 +143,6 @@ func NewClient(opt Options) (*Client, error) {
 	c.updateAPIPath()
 	c.pool = addresspool.NewPool(opt.Endpoints, addresspool.Options{
 		HttpProbeOptions: &addresspool.HttpProbeOptions{
-			Client:   c.client,
 			Protocol: c.protocol,
 			Path:     MSAPIPath + ReadinessPath,
 		},

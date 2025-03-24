@@ -1016,75 +1016,73 @@ func (c *Client) Close() error {
 func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callback func(e *MicroServiceInstanceChangedEvent),
 	extraHandle func(action string, opts ...CallOption)) error {
 	openlog.Info(fmt.Sprintf("WatchMicroServiceWithExtraHandle, microServiceID:%s", microServiceID))
+	c.mutex.Lock()
 	if ready, ok := c.watchers[microServiceID]; !ok || !ready {
-		c.mutex.Lock()
-		if ready, ok := c.watchers[microServiceID]; !ok || !ready {
-			openlog.Info(fmt.Sprintf("WatchMicroServiceWithExtraHandle watch, microServiceID:%s", microServiceID))
-			c.watchers[microServiceID] = true
-			scheme := "wss"
-			if !c.opt.EnableSSL {
-				scheme = "ws"
-			}
-			host := c.GetAddress()
-			u := url.URL{
-				Scheme: scheme,
-				Host:   host,
-				Path: fmt.Sprintf("%s%s/%s%s", MSAPIPath,
-					MicroservicePath, microServiceID, WatchPath),
-			}
-			conn, _, err := c.dialWebsocket(&u)
-			if err != nil {
-				c.watchers[microServiceID] = false
-				c.mutex.Unlock()
-				return fmt.Errorf("watching microservice dial catch an exception,microServiceID: %s, error:%s", microServiceID, err.Error())
-			}
+		openlog.Info(fmt.Sprintf("WatchMicroServiceWithExtraHandle watch, microServiceID:%s", microServiceID))
+		c.watchers[microServiceID] = true
+		scheme := "wss"
+		if !c.opt.EnableSSL {
+			scheme = "ws"
+		}
+		host := c.GetAddress()
+		u := url.URL{
+			Scheme: scheme,
+			Host:   host,
+			Path: fmt.Sprintf("%s%s/%s%s", MSAPIPath,
+				MicroservicePath, microServiceID, WatchPath),
+		}
+		conn, _, err := c.dialWebsocket(&u)
+		if err != nil {
+			c.watchers[microServiceID] = false
+			c.mutex.Unlock()
+			return fmt.Errorf("watching microservice dial catch an exception,microServiceID: %s, error:%s", microServiceID, err.Error())
+		}
 
-			c.conns[microServiceID] = conn
-			// After successfully subscribing to the service, pull the dependency again.
-			// This prevents the event from not being notified after one of the dual engines fails and the other has no dependencies.
-			extraHandle("watchSucceed", WithAddress(host))
-			go func() {
-				for {
-					messageType, message, err := conn.ReadMessage()
+		c.conns[microServiceID] = conn
+		// After successfully subscribing to the service, pull the dependency again.
+		// This prevents the event from not being notified after one of the dual engines fails and the other has no dependencies.
+		extraHandle("watchSucceed", WithAddress(host))
+		go func() {
+			for {
+				messageType, message, err := conn.ReadMessage()
+				if err != nil {
+					openlog.Error(fmt.Sprintf("%s:%s", "conn.ReadMessage()", err.Error()))
+					break
+				}
+				if messageType == websocket.TextMessage {
+					var response MicroServiceInstanceChangedEvent
+					err := json.Unmarshal(message, &response)
 					if err != nil {
-						openlog.Error(fmt.Sprintf("%s:%s", "conn.ReadMessage()", err.Error()))
+						if strings.Contains(string(message), "service does not exist") {
+							openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response), message", string(message)))
+							c.mutex.Lock()
+							delete(c.conns, microServiceID)
+							delete(c.watchers, microServiceID)
+							c.mutex.Unlock()
+							openlog.Info(fmt.Sprintf("delete conn, microServiceID:%s", microServiceID))
+							extraHandle("serviceNotExist")
+							return
+						}
+						openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response), message", string(message)))
+						openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response)", err.Error()))
 						break
 					}
-					if messageType == websocket.TextMessage {
-						var response MicroServiceInstanceChangedEvent
-						err := json.Unmarshal(message, &response)
-						if err != nil {
-							if strings.Contains(string(message), "service does not exist") {
-								openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response), message", string(message)))
-								c.mutex.Lock()
-								delete(c.conns, microServiceID)
-								delete(c.watchers, microServiceID)
-								c.mutex.Unlock()
-								openlog.Info(fmt.Sprintf("delete conn, microServiceID:%s", microServiceID))
-								extraHandle("serviceNotExist")
-								return
-							}
-							openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response), message", string(message)))
-							openlog.Error(fmt.Sprintf("%s:%s", "json.Unmarshal(message, &response)", err.Error()))
-							break
-						}
-						callback(&response)
-					}
+					callback(&response)
 				}
-				err = conn.Close()
-				if err != nil {
-					openlog.Error(fmt.Sprintf("%s:%s", "conn.Close()", err.Error()))
-				}
-				c.mutex.Lock()
-				delete(c.conns, microServiceID)
-				delete(c.watchers, microServiceID)
-				c.mutex.Unlock()
-				openlog.Info(fmt.Sprintf("conn stop, microServiceID:%s", microServiceID))
-				c.startBackOffWithExtraHandle(microServiceID, callback, extraHandle)
-			}()
-		}
-		c.mutex.Unlock()
+			}
+			err = conn.Close()
+			if err != nil {
+				openlog.Error(fmt.Sprintf("%s:%s", "conn.Close()", err.Error()))
+			}
+			c.mutex.Lock()
+			delete(c.conns, microServiceID)
+			delete(c.watchers, microServiceID)
+			c.mutex.Unlock()
+			openlog.Info(fmt.Sprintf("conn stop, microServiceID:%s", microServiceID))
+			c.startBackOffWithExtraHandle(microServiceID, callback, extraHandle)
+		}()
 	}
+	c.mutex.Unlock()
 	return nil
 }
 

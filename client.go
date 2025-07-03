@@ -146,6 +146,7 @@ func NewClient(opt Options) (*Client, error) {
 			Protocol: c.protocol,
 			Path:     MSAPIPath + ReadinessPath,
 		},
+		DiffAzEndpoints: opt.DiffAzEndpoints,
 	})
 	return c, nil
 }

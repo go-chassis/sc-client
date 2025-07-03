@@ -11,10 +11,11 @@ import (
 
 // Options is the list of dynamic parameter's which can be passed to the Client while creating a new client
 type Options struct {
-	Endpoints []string
-	EnableSSL bool
-	Timeout   time.Duration
-	TLSConfig *tls.Config
+	DiffAzEndpoints []string
+	Endpoints       []string
+	EnableSSL       bool
+	Timeout         time.Duration
+	TLSConfig       *tls.Config
 	// Other options can be stored in a context
 	Context         context.Context
 	Compressed      bool

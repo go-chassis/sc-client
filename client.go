@@ -1108,6 +1108,7 @@ func (c *Client) DisconnectMicroServiceWatching(microServiceID string) {
 	conn, ok := c.conns[microServiceID]
 	if !ok {
 		openlog.Info(fmt.Sprintf("conn not exist, microServiceID:%s", microServiceID))
+		delete(c.watchers, microServiceID)
 		return
 	}
 	err := conn.Close()

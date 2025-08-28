@@ -1071,6 +1071,10 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 					callback(&response)
 				}
 			}
+			if c.needCancelWatching(microServiceID) {
+				openlog.Info(fmt.Sprintf("microServiceID:%s Cancel Watching", microServiceID))
+				return
+			}
 			err = conn.Close()
 			if err != nil {
 				openlog.Error(fmt.Sprintf("%s:%s", "conn.Close()", err.Error()))
@@ -1085,6 +1089,33 @@ func (c *Client) WatchMicroServiceWithExtraHandle(microServiceID string, callbac
 	}
 	c.mutex.Unlock()
 	return nil
+}
+
+func (c *Client) needCancelWatching(microServiceID string) bool {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	_, connExist := c.conns[microServiceID]
+	_, watcherExist := c.watchers[microServiceID]
+	if connExist || watcherExist {
+		return false
+	}
+	return true
+}
+
+func (c *Client) DisconnectMicroServiceWatching(microServiceID string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	conn, ok := c.conns[microServiceID]
+	if !ok {
+		openlog.Info(fmt.Sprintf("conn not exist, microServiceID:%s", microServiceID))
+		return
+	}
+	err := conn.Close()
+	if err != nil {
+		openlog.Error(fmt.Sprintf("microServiceID:%s conn.Close() error:%s", microServiceID, err.Error()))
+	}
+	delete(c.conns, microServiceID)
+	delete(c.watchers, microServiceID)
 }
 
 func (c *Client) startBackOffWithExtraHandle(microServiceID string, callback func(*MicroServiceInstanceChangedEvent),
